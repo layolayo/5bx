@@ -1,0 +1,40 @@
+{
+    "name": "Harvey",
+    "dob": "2010-08-02",
+    "age": 15,
+    "current_stats": {
+        "date": "2026-01-13 21:15:10",
+        "resting_hr": 86.8,
+        "baseline_rmssd": 40.071,
+        "stress_hr_threshold": 99.9,
+        "recovery_score": 134.1,
+        "max_hr": 180,
+        "raw_results": {
+            "rest": {
+                "avg_hr": 86.83333333333333,
+                "max_hr": 100,
+                "avg_rmssd": 40.07093664376254,
+                "peak_rmssd": 79.57142144709438
+            },
+            "stress": {
+                "avg_hr": 89.21666666666667,
+                "max_hr": 100,
+                "avg_rmssd": 22.135520442358672,
+                "peak_rmssd": 57.18511983929458
+            },
+            "exertion": {
+                "avg_hr": 94.97777777777777,
+                "max_hr": 108,
+                "avg_rmssd": 85.93595893973657,
+                "peak_rmssd": 129.78935188245978
+            },
+            "recovery": {
+                "avg_hr": 108.9,
+                "max_hr": 113,
+                "avg_rmssd": 114.35511160831503,
+                "peak_rmssd": 134.11433619271952
+            }
+        }
+    },
+    "history": []
+}
