@@ -114,8 +114,9 @@ class Bio5BXApp(tk.Tk):
         else:
             self.bell()
             print('\a')
-            try: os.system('spd-say "done" &')
-            except: pass
+            # Removed spd-say "done" as per user request
+            # try: os.system('spd-say "done" &')
+            # except: pass
 
     def calculate_age(self, dob_str):
         # dob_str might be YYYY-MM-DD or None
@@ -1460,7 +1461,36 @@ class Bio5BXApp(tk.Tk):
         
         tk.Button(top_bar, text="⬅ Quit Workout", command=self.show_dashboard, bg="#e74c3c", fg="white").pack(side=tk.LEFT)
         
-        ttk.Label(frame, text=f"Exercise {idx+1}: {details['name']}", font=("Helvetica", 24, "bold")).pack()
+        title_text = f"Exercise {idx+1}: {details['name']}"
+        
+        # Customize title for Run/Walk to show distance
+        if idx == 4 and self.current_cardio_mode:
+             # Logic to extract distance similar to below, or just use the whole string?
+             # User wants: "Run (Distance)"
+             # self.current_cardio_mode is like "1 Mile (1.6 km) Run"
+             # We want "Run (1 Mile (1.6 km))" or just swap it?
+             # Let's say details['name'] is "Run" (from get_exercise_detail) 
+             # actually get_exercise_detail returns generic names mostly unless overridden.
+             # Let's use current_cardio_mode to build it.
+             
+             raw = self.current_cardio_mode
+             dist_text = ""
+             mode_name = "Run"
+             if "Run" in raw: 
+                 dist_text = raw.replace(" Run", "")
+                 mode_name = "Run"
+             elif "Walk" in raw: 
+                 dist_text = raw.replace(" Walk", "")
+                 mode_name = "Walk"
+             elif "Stationary" in raw:
+                 mode_name = "Stationary Run"
+                 
+             if dist_text:
+                 title_text = f"Exercise {idx+1}: {mode_name} - {dist_text}"
+             elif mode_name == "Stationary Run":
+                 title_text = f"Exercise {idx+1}: Stationary Run"
+
+        ttk.Label(frame, text=title_text, font=("Helvetica", 24, "bold")).pack()
 
         img_path = os.path.join(IMG_DIR, details['img'])
         if os.path.exists(img_path) and details['img']:
@@ -1503,12 +1533,12 @@ class Bio5BXApp(tk.Tk):
         lbl_target.pack(pady=10) # Center
         
         self.time_left = duration
-        self.lbl_timer = ttk.Label(stats_frame, text=f"{self.time_left}s", font=("Courier", 32), background="#22313f", foreground="#bdc3c7")
+        self.lbl_timer = ttk.Label(stats_frame, text=f"{self.time_left}s", font=("Arial", 80, "bold"), background="#22313f", foreground="#bdc3c7")
         self.lbl_timer.pack(pady=5) # Center
 
         self.lbl_hr = ttk.Label(frame, text="HR: --", font=("Arial", 48, "bold"))
         self.lbl_hr.pack()
-        self.lbl_advice = ttk.Label(frame, text="Get Ready...", foreground="cyan", font=("Arial", 24, "bold"))
+        self.lbl_advice = ttk.Label(frame, text="Get Ready...", foreground="darkorange", font=("Arial", 24, "bold"))
         self.lbl_advice.pack()
         
         # HRM Status Label (Inside Frame for visibility or stick to bottom?)
@@ -1516,12 +1546,40 @@ class Bio5BXApp(tk.Tk):
         self.lbl_device_status = ttk.Label(stats_frame, text="📡 Scanning...", foreground="#95a5a6", background="#22313f", font=("Arial", 14))
         self.lbl_device_status.pack(side=tk.BOTTOM, pady=5)
         
+        # DISTANCE DISPLAY (NEW)
+        if idx == 4:
+             dist_text = ""
+             # Check for Run/Walk variant
+             if self.current_cardio_mode:
+                 if "Run" in self.current_cardio_mode:
+                     c_config = bx.get_cardio_config(chart)
+                     # Parse out the distance part if possible, or just use the whole string?
+                     # The string is like "1 Mile (1.6 km) Run"
+                     # Let's extract "1 Mile (1.6 km)"
+                     raw = self.current_cardio_mode
+                     if "Run" in raw: dist_text = raw.replace(" Run", "")
+                     elif "Walk" in raw: dist_text = raw.replace(" Walk", "")
+                     else: dist_text = raw
+                 
+             if dist_text:
+                 ttk.Label(stats_frame, text=f"Distance: {dist_text}", foreground="#f1c40f", background="#22313f", font=("Arial", 18, "bold")).pack(pady=5)
+
+
         # Alt Cardio Mode Logic
         if idx == 4 and self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode:
              # Manual Mode UI
-             self.lbl_hr.pack_forget()
-             self.lbl_advice.pack_forget() # Hide generic advice
-             self.lbl_timer.pack_forget()  # Hide Countdown
+             # Removed explicitly hiding HR/Advice/Timer. We want HR and Advice visible.
+             # self.lbl_hr.pack_forget() <- REMOVED
+             # self.lbl_advice.pack_forget() <- REMOVED
+             
+             self.lbl_timer.pack_forget() # Hide Timer for Run/Walk as per user request
+             
+             # Actually we only want to hide the TIMER if we are doing distance based, but user might want to see elapsed time?
+             # User Request: "show HR, HR status and HRV"
+             # So we keep lbl_hr and lbl_advice (status).
+             # We might want to hide the COUNTDOWN TIMER (`lbl_timer`) if it's not relevant, but let's just leave it or repurpose?
+             # The code below changes lbl_target to GOAL TIME. 
+             # Let's just create the HRV label here too.
              
              # Show Target Time clearly
              mins = target // 60
@@ -1544,13 +1602,22 @@ class Bio5BXApp(tk.Tk):
                      kph = mph * 1.60934
                      # Cyan color for high visibility on dark bg
                      ttk.Label(stats_frame, text=f"Speed: {mph:.1f} mph ({kph:.1f} km/h)", 
-                              foreground="#00ffff", background="#22313f", font=("Arial", 18, "bold")).pack(pady=5)
+                               foreground="#00ffff", background="#22313f", font=("Arial", 18, "bold")).pack(pady=5)
              except: pass
+             
+             # LIVE HRV DISPLAY (Added here as well)
+             self.lbl_hrv = ttk.Label(frame, text="HRV: -- ms", font=("Arial", 24), foreground="white")
+             self.lbl_hrv.pack()
              
              self.btn_action = tk.Button(frame, text="ENTER TIME TAKEN", bg="#3498db", fg="white", font=("Arial", 14, "bold"), command=self.input_results)
              self.btn_action.pack(fill=tk.X, side=tk.BOTTOM, pady=10)
         else:
-             self.btn_action = tk.Button(frame, text="START TIMER", bg="#2ecc71", fg="white", font=("Arial", 14, "bold"), command=self.start_timer_action)
+             # LIVE HRV DISPLAY (NEW)
+             # Add a label for HRV next to HR
+             self.lbl_hrv = ttk.Label(frame, text="HRV: -- ms", font=("Arial", 24), foreground="white")
+             self.lbl_hrv.pack()
+             
+             self.btn_action = tk.Button(frame, text="START EXERCISE (3s Countdown)", bg="#2ecc71", fg="white", font=("Arial", 14, "bold"), command=self.start_timer_action)
              self.btn_action.pack(fill=tk.X, side=tk.BOTTOM, pady=10)
         self.timer_running = False
 
@@ -1599,10 +1666,37 @@ class Bio5BXApp(tk.Tk):
              
         tk.Button(parent, text="⬅ Quit Workout", command=self.show_dashboard, bg="#95a5a6", fg="white").pack(side=tk.BOTTOM, pady=20)
 
+
     def start_timer_action(self):
-        self.timer_running = True
-        self.btn_action.config(text="COMPLETED (Input Reps)", bg="#e67e22", command=self.input_results)
-        self.timer_loop()
+        # Disable button during countdown
+        self.btn_action.config(state=tk.DISABLED, bg="#95a5a6", text="Starting...")
+        self.start_countdown(3)
+
+    def start_countdown(self, count):
+        if not hasattr(self, 'lbl_timer') or not self.lbl_timer.winfo_exists(): return
+        
+        if count > 0:
+            # Display Count on TIMER LABEL (Stats Box)
+            self.lbl_timer.config(text=str(count), foreground="#f1c40f", font=("Arial", 80, "bold"))
+            self.play_beep()
+            self.after(1000, lambda: self.start_countdown(count - 1))
+        else:
+            # GO!
+            self.lbl_timer.config(text="GO!", foreground="#2ecc71", font=("Arial", 80, "bold"))
+            self.play_beep() 
+            
+            # Start Actual Timer
+            self.timer_running = True
+            self.btn_action.config(state=tk.NORMAL, text="COMPLETED (Input Reps)", bg="#e67e22", command=self.input_results)
+            
+            # Wait 1s then restore and start
+            self.after(1000, self._start_real_timer)
+
+    def _start_real_timer(self):
+        if not self.workout_active or not self.timer_running: return
+        if hasattr(self, 'lbl_timer') and self.lbl_timer.winfo_exists():
+            self.lbl_timer.config(font=("Arial", 80, "bold"), foreground="#bdc3c7")
+            self.timer_loop()
 
     def input_results(self):
         self.timer_running = False
@@ -1687,22 +1781,28 @@ class Bio5BXApp(tk.Tk):
 
     def timer_loop(self):
         if not self.workout_active or not self.timer_running: return
+        
+        # Safety Check: Ensure widget exists before configuring
+        if not hasattr(self, 'lbl_timer') or not self.lbl_timer.winfo_exists():
+            self.timer_running = False
+            return
+
         if self.time_left > 0:
             self.time_left -= 1
             self.lbl_timer.config(text=f"{self.time_left}s")
             self.after(1000, self.timer_loop)
         else:
             self.lbl_timer.config(text="TIME UP!", foreground="red")
-            self.btn_action.config(text="TIME UP - Enter Reps", bg="#c0392b")
             self.play_beep()
+            # AUTO-STOP LOGIC (NEW)
+            # Automatically trigger input results
+            self.input_results()
 
     def sensor_loop(self):
         if not self.workout_active: return
         
         if self.sensor:
             data = self.sensor.get_data()
-            hr = data['bpm']
-            rmssd = data['rmssd']
             hr = data['bpm']
             rmssd = data['rmssd']
 
@@ -1734,6 +1834,11 @@ class Bio5BXApp(tk.Tk):
                 try:
                     txt = f"♥ {hr} BPM"
                     if hasattr(self, 'lbl_hr'): self.lbl_hr.config(text=txt)
+                    
+                    # LIVE HRV UPDATE (NEW)
+                    if hasattr(self, 'lbl_hrv'): 
+                        self.lbl_hrv.config(text=f"HRV: {int(rmssd)} ms")
+
                     if hasattr(self, 'lbl_advice'): self.lbl_advice.config(text=status_text, foreground=status_color)
                 except: pass
         
