@@ -132,17 +132,56 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
     user_target_score = get_total_score(user_target_c, user_target_l)
     
     if s_score_new > user_target_score or c_score_new > user_target_score:
-        # Standard Superman
-        for (min_a, max_a), target in AGE_TARGETS.items():
-            if age > max_a: # Only check younger groups
-                title = f"🦸 SUPERMAN (Age {min_a}-{max_a} Level)"
-                check_threshold(target[0], target[1], title, False, None, "SUPERMAN.png")
+        # Collect candidates separately for the two schemes
+        std_candidates = []
+        elite_candidates = []
         
-        # Elite Superman
+        # 1. Standard Targets
+        for (min_a, max_a), target in AGE_TARGETS.items():
+            if age > max_a: 
+                t_score = get_total_score(target[0], target[1])
+                # Did we cross it?
+                s_crossed_t = (s_score_old < t_score <= s_score_new)
+                c_crossed_t = (c_score_old < t_score <= c_score_new)
+                
+                if s_crossed_t or c_crossed_t:
+                    std_candidates.append({
+                        'score': t_score, 
+                        'title': f"🦸 SUPERMAN (Age {min_a}-{max_a} Level)",
+                        'target': target,
+                        'elite': False,
+                        'img': "SUPERMAN.png"
+                    })
+        
+        # 2. Elite Targets
         for (min_a, max_a), target in ELITE_TARGETS.items():
             if age > max_a:
-                title = f"🚀 SUPERMAN ELITE (Age {min_a}-{max_a} Level)"
-                check_threshold(target[0], target[1], title, True, None, "ELITESUPERMAN.png")
+                t_score = get_total_score(target[0], target[1])
+                s_crossed_t = (s_score_old < t_score <= s_score_new)
+                c_crossed_t = (c_score_old < t_score <= c_score_new)
+                
+                if s_crossed_t or c_crossed_t:
+                    elite_candidates.append({
+                        'score': t_score, 
+                        'title': f"🚀 SUPERMAN ELITE (Age {min_a}-{max_a} Level)",
+                        'target': target,
+                        'elite': True,
+                        'img': "ELITESUPERMAN.png"
+                    })
+                    
+        # 3. Award Best of Each Scheme
+        
+        # Best Standard
+        if std_candidates:
+            std_candidates.sort(key=lambda x: x['score'], reverse=True)
+            best = std_candidates[0]
+            check_threshold(best['target'][0], best['target'][1], best['title'], best['elite'], None, best['img'])
+
+        # Best Elite
+        if elite_candidates:
+            elite_candidates.sort(key=lambda x: x['score'], reverse=True)
+            best = elite_candidates[0]
+            check_threshold(best['target'][0], best['target'][1], best['title'], best['elite'], None, best['img'])
         
     return badges
 
