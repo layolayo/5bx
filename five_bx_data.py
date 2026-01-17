@@ -181,11 +181,16 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
             t_score = t['score']
             target = t['target']
             
-            # Did we cross it?
-            s_crossed_t = (s_score_old < t_score <= s_score_new)
-            c_crossed_t = (c_score_old < t_score <= c_score_new)
+            # Did we cross it? (Strict: Must meet BOTH now, and wasn't meeting BOTH before)
+            s_pass = (s_score_new >= t_score)
+            c_pass = (c_score_new >= t_score)
+            s_was_pass = (s_score_old >= t_score)
+            c_was_pass = (c_score_old >= t_score)
             
-            if s_crossed_t or c_crossed_t:
+            # Unlocked if passing BOTH now, but wasn't passing BOTH before
+            unlocked = (s_pass and c_pass) and (not s_was_pass or not c_was_pass)
+            
+            if unlocked:
                 candidate = {
                     'score': t_score,
                     'title': t['title'],
@@ -306,14 +311,9 @@ def get_earned_badges(s_chart, s_level, c_chart, c_level, user_age=100):
         strength_pass = (s_score >= t_score_val)
         cardio_pass = (c_score >= t_score_val)
         
-        if strength_pass or cardio_pass:
-            status_text = ""
-            if strength_pass and cardio_pass:
-                 status_text = "✨ FULLY ACHIEVED ✨"
-            elif strength_pass:
-                 status_text = "💪 Strength Only"
-            else:
-                 status_text = "❤️ Cardio Only"
+        # STRICT: Must have BOTH to earn Superman Badge
+        if strength_pass and cardio_pass:
+            status_text = "✨ FULLY ACHIEVED ✨"
 
             details_sup = f"Chart {t_c} / Level {get_level_display(t_l)}"
             
