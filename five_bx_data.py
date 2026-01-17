@@ -58,10 +58,48 @@ def get_badge_image_path(is_elite, min_a, max_a):
     prefix = "FC" if is_elite else ""
     suffix = f"{min_a}" if min_a == max_a else f"{min_a}-{max_a}"
     filename = f"{prefix}{suffix}.png"
+    return os.path.join(BADGE_DIR, filename) if os.path.exists(os.path.join(BADGE_DIR, filename)) else None
+
+def get_superman_targets(age):
+    """
+    Returns a list of potential Superman targets (younger than user).
+    Each item: {
+        'type': 'Standard'|'Elite', 
+        'score': int, 
+        'title': str, 
+        'target': (chart, level), 
+        'image_name': str
+    }
+    """
+    targets = []
     
-    path = os.path.join(BADGE_DIR, filename)
-    if os.path.exists(path): return path
-    return None
+    # helper for age string
+    def _fmt_age(min_a, max_a):
+        return f"{min_a}" if min_a == max_a else f"{min_a}-{max_a}"
+        
+    # 1. Standard Targets
+    for (min_a, max_a), target in AGE_TARGETS.items():
+        if age > max_a:
+            targets.append({
+                'type': 'Standard',
+                'score': get_total_score(target[0], target[1]),
+                'title': f"🦸 SUPERMAN (Age {_fmt_age(min_a, max_a)} Level)",
+                'target': target,
+                'image_name': "SUPERMAN.png"
+            })
+            
+    # 2. Elite Targets
+    for (min_a, max_a), target in ELITE_TARGETS.items():
+        if age > max_a:
+            targets.append({
+                'type': 'Elite',
+                'score': get_total_score(target[0], target[1]),
+                'title': f"🚀 SUPERMAN ELITE (Age {_fmt_age(min_a, max_a)} Level)",
+                'target': target,
+                'image_name': "ELITESUPERMAN.png"
+            })
+            
+    return targets
 
 def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, c_new_c, c_new_l):
     badges = []
@@ -136,38 +174,30 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
         std_candidates = []
         elite_candidates = []
         
-        # 1. Standard Targets
-        for (min_a, max_a), target in AGE_TARGETS.items():
-            if age > max_a: 
-                t_score = get_total_score(target[0], target[1])
-                # Did we cross it?
-                s_crossed_t = (s_score_old < t_score <= s_score_new)
-                c_crossed_t = (c_score_old < t_score <= c_score_new)
-                
-                if s_crossed_t or c_crossed_t:
-                    std_candidates.append({
-                        'score': t_score, 
-                        'title': f"🦸 SUPERMAN (Age {min_a}-{max_a} Level)",
-                        'target': target,
-                        'elite': False,
-                        'img': "SUPERMAN.png"
-                    })
+        # Use Helper
+        all_targets = get_superman_targets(age)
         
-        # 2. Elite Targets
-        for (min_a, max_a), target in ELITE_TARGETS.items():
-            if age > max_a:
-                t_score = get_total_score(target[0], target[1])
-                s_crossed_t = (s_score_old < t_score <= s_score_new)
-                c_crossed_t = (c_score_old < t_score <= c_score_new)
+        for t in all_targets:
+            t_score = t['score']
+            target = t['target']
+            
+            # Did we cross it?
+            s_crossed_t = (s_score_old < t_score <= s_score_new)
+            c_crossed_t = (c_score_old < t_score <= c_score_new)
+            
+            if s_crossed_t or c_crossed_t:
+                candidate = {
+                    'score': t_score,
+                    'title': t['title'],
+                    'target': target,
+                    'elite': (t['type'] == 'Elite'),
+                    'img': t['image_name']
+                }
                 
-                if s_crossed_t or c_crossed_t:
-                    elite_candidates.append({
-                        'score': t_score, 
-                        'title': f"🚀 SUPERMAN ELITE (Age {min_a}-{max_a} Level)",
-                        'target': target,
-                        'elite': True,
-                        'img': "ELITESUPERMAN.png"
-                    })
+                if t['type'] == 'Standard':
+                    std_candidates.append(candidate)
+                else:
+                    elite_candidates.append(candidate)
                     
         # 3. Award Best of Each Scheme
         
@@ -230,19 +260,7 @@ def get_earned_badges(s_chart, s_level, c_chart, c_level, user_age=100):
             badges.append(badge_entry)
             
             # Check Superman (Pass + Younger Age)
-            if max_a < user_age:
-                 # If this target is HARDER (higher score) than current best, store it
-                 # (Scores usually correlate with younger ages, but let's trust Score)
-                 if best_superman_std is None or t_score > best_superman_std[0]:
-                     title_sup = f"🦸 SUPERMAN (Age {min_a}-{max_a} Level)"
-                     best_superman_std = (t_score, {
-                         'title': title_sup, 
-                         'details': details + "\n" + status_text, # Combine
-                         'image': os.path.join(BADGE_DIR, "SUPERMAN.png"), 
-                         'type': 'Superman', 
-                         'score': t_score + 1000, # Push to top
-                         'status': status_text
-                     })
+            # (Refactored to separate block below)
             
     # Check all Elite Targets
     for (min_a, max_a), target in ELITE_TARGETS.items():
@@ -272,17 +290,50 @@ def get_earned_badges(s_chart, s_level, c_chart, c_level, user_age=100):
             badges.append({'title': title, 'details': details, 'image': img, 'type': 'Elite', 'score': t_score + 500, 'status': status_text})
 
             # Check Elite Superman
-            if max_a < user_age:
-                 if best_superman_elite is None or t_score > best_superman_elite[0]:
-                     title_sup = f"🚀 SUPERMAN ELITE (Age {min_a}-{max_a} Level)"
-                     best_superman_elite = (t_score, {
-                         'title': title_sup, 
-                         'details': details + "\n" + status_text, 
-                         'image': os.path.join(BADGE_DIR, "ELITESUPERMAN.png"), 
-                         'type': 'Superman Elite', 
-                         'score': t_score + 2000, 
-                         'status': status_text
-                     })
+            # (Refactored to separate block below)
+
+    # Calculate Best Supermans using Helper (Cleaner Logic)
+    all_superman_targets = get_superman_targets(user_age)
+    
+    for t in all_superman_targets:
+        t_score = t['score']
+        target = t['target']
+        
+        # Check against user score to see if achieved
+        t_c, t_l = target
+        t_score_val = get_total_score(t_c, t_l)
+        
+        strength_pass = (s_score >= t_score_val)
+        cardio_pass = (c_score >= t_score_val)
+        
+        if strength_pass or cardio_pass:
+            status_text = ""
+            if strength_pass and cardio_pass:
+                 status_text = "✨ FULLY ACHIEVED ✨"
+            elif strength_pass:
+                 status_text = "💪 Strength Only"
+            else:
+                 status_text = "❤️ Cardio Only"
+
+            details_sup = f"Chart {t_c} / Level {get_level_display(t_l)}"
+            
+            # Construct Candidate
+            candidate = (t_score_val, {
+                'title': t['title'],
+                'details': details_sup + "\n" + status_text,
+                'image': os.path.join(BADGE_DIR, t['image_name']),
+                'type': 'Superman' if t['type'] == 'Standard' else 'Superman Elite',
+                'score': t_score_val + (1000 if t['type'] == 'Standard' else 2000),
+                'status': status_text
+            })
+            
+            # Update Best (Max Algorithm)
+            if t['type'] == 'Standard':
+                if best_superman_std is None or t_score_val > best_superman_std[0]:
+                    best_superman_std = candidate
+            else:
+                if best_superman_elite is None or t_score_val > best_superman_elite[0]:
+                    best_superman_elite = candidate
 
     # Append Best Supermans
     if best_superman_std: badges.append(best_superman_std[1])
@@ -328,31 +379,28 @@ def get_exercise_detail(chart, idx, variant="Standard"):
         elif "Walk" in variant:
              db_ex_id = 7
     
+    # Retrieve name from DB with fallback
     try:
-        cursor.execute("SELECT instructions, image FROM Instructions WHERE chart=? AND exercise=?", (s_chart, db_ex_id))
+        cursor.execute("SELECT instructions, image, name FROM Instructions WHERE chart=? AND exercise=?", (s_chart, db_ex_id))
         row = cursor.fetchone()
         conn.close()
 
         if row:
             desc = row[0]
             img_file = row[1] if row[1] else f"c{chart}_ex{idx + 1}.png"
-            names = []
-            if str(s_chart) == "1": names = ["Toe Touch", "Knee Prepare", "Lateral Bend", "Knee Push-up", "Run & Scissor Jumps"]
-            elif str(s_chart) == "2": names = ["Toe Touch", "Sit-up", "Back Arch", "Push-up", "Run & Star Jumps"]
-            elif str(s_chart) == "3": names = ["Toe Touch (to sides)", "Abdominal Curl", "Back Extension", "V Push-up", "Run & Half Knee Bends"]
-            elif str(s_chart) == "4": names = ["Toe Touch (to sides and circle)", "Sit-up (touch toes)", "Back Extension (cross)", "Wide Push-up", "Run & Semi-Squat Jumps"]
-            elif str(s_chart) == "5": names = ["Toe Touch (to sides and circle)", "Sit-up (elbows to knees)", "Back Extension (straight)", "Push-up with Clap", "Run & Semi-Spread Eagle Jumps"]
-            elif str(s_chart) == "6": names = ["Toe Touch (to sides and circle)", "Sit-up (touch toes lifted)", "Back Extension (straight)", "Push-up with Chest Slap", "Run & Jack Jumps"]
-            else: names = ["Flexibility", "Sit-up", "Back Arch", "Push-up", "Cardio"] # Fallback
-
-            name_to_use = names[idx] if idx < len(names) else f"Exercise {idx+1}"
+            db_name = row[2]  # New Column
             
-            # Override Name if Variant
+            # Generic Fallback (used only if DB name is truly missing)
+            fallback_names = ["Flexibility", "Sit-up", "Back Arch", "Push-up", "Cardio"]
+
+            # Logic: Use DB name -> Generic Fallback -> "Exercise X"
+            fallback_name = fallback_names[idx] if idx < len(fallback_names) else f"Exercise {idx+1}"
+            name_to_use = db_name if db_name else fallback_name
+            
+            # Override Name if Variant (Still applies dynamic logic)
             if idx == 4:
                 if db_ex_id == 6: name_to_use = "Run (Distance)"
                 elif db_ex_id == 7: name_to_use = "Walk (Distance)"
-                # Actually, relying on dynamic labels from Config in App is better for "1 Mile Run". 
-                # But 'name' here is used for headers. Let's align.
                 
             return {"name": name_to_use, "desc": desc, "img": img_file}
     except:
