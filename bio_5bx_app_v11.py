@@ -1137,7 +1137,84 @@ class Bio5BXApp(tk.Tk):
             except: pass
             
         # Description (Right)
-        tk.Label(content_frame, text=details['desc'], font=("Arial", 12), bg="#34495e", fg="#ecf0f1", wraplength=text_wrap, justify=tk.LEFT).pack(side=tk.LEFT, padx=10, fill=tk.BOTH, expand=True)
+        f_desc = tk.Frame(content_frame, bg="#34495e")
+        f_desc.pack(side=tk.LEFT, padx=10, fill=tk.BOTH, expand=True)
+
+        tk.Label(f_desc, text=details['desc'], font=("Arial", 12), bg="#34495e", fg="#ecf0f1", wraplength=text_wrap, justify=tk.LEFT).pack(anchor="w", fill=tk.BOTH)
+
+        # --- TREADMILL CHART (Run/Walk Only) ---
+        # Ex 5 (idx 4) is Stationary.
+        # Ex 6 (idx 5) is Run.
+        # Ex 7 (idx 6) is Walk.
+        
+        target_mode = None
+        if idx == 5: target_mode = "RUN"
+        elif idx == 6: target_mode = "WALK"
+        
+        if target_mode:
+            # 1. Get Distances
+            chart_str = str(self.view_chart_idx)
+            cfg = bx.get_cardio_config(chart_str)
+            
+            # Helper to parse "1 Mile" -> 1.0
+            def parse_dist(txt):
+                if not txt: return 0
+                try:
+                    # Assumes format like "1 Mile..." or "1/2 Mile..."
+                    first = txt.split()[0]
+                    if "/" in first:
+                        n, d = first.split("/")
+                        return float(n)/float(d)
+                    return float(first)
+                except: return 0
+            
+            # Determine params
+            dist = 0
+            m_idx = 0
+            
+            if target_mode == "RUN":
+                 dist = parse_dist(cfg.get('run'))
+                 m_idx = 5 # Index in get_targets
+            elif target_mode == "WALK":
+                 dist = parse_dist(cfg.get('walk'))
+                 m_idx = 6 # Index in get_targets
+            
+            if dist > 0:
+                tk.Label(f_desc, text=f"\n🏃 {target_mode} SETTINGS ({dist} Mile(s))", font=("Arial", 10, "bold"), bg="#34495e", fg="#3498db").pack(anchor="w", pady=(10, 0))
+                
+                # Table Frame
+                f_table = ttk.Frame(f_desc)
+                f_table.pack(anchor="w", fill=tk.X, pady=5)
+                
+                cols = ("Level", "Time", "MPH", "KPH")
+                tv = ttk.Treeview(f_table, columns=cols, show="headings", height=12)
+                tv.pack(fill=tk.X)
+                
+                for c in cols: 
+                    tv.heading(c, text=c)
+                    tv.column(c, width=60, anchor="center")
+                    
+                # Calculate for Levels 12 down to 1 (A+ to D-)
+                for l in range(12, 0, -1):
+                    targs = bx.get_targets(chart_str, str(l))
+                    time_sec = targs[m_idx] if len(targs) > m_idx else 0
+                    
+                    if time_sec > 0:
+                        mins = time_sec // 60
+                        secs = time_sec % 60
+                        t_str = f"{mins}:{secs:02d}"
+                        
+                        # Speed = Dist / (Sec / 3600)
+                        mph = dist / (time_sec / 3600.0)
+                        kph = mph * 1.60934
+                        
+                        # Level Display (e.g. "A+")
+                        lvl_disp = bx.get_level_display(l)
+                        
+                        tv.insert("", "end", values=(lvl_disp, t_str, f"{mph:.1f}", f"{kph:.1f}"))
+                
+                # Adjust height to content
+                tv.configure(height=12)
 
         # --- GRAPH RENDERING ---
         for widget in self.graph_pane.winfo_children(): widget.destroy()
@@ -1175,17 +1252,22 @@ class Bio5BXApp(tk.Tk):
             
             # Helper to get value
             val = 0
+            e_type = r.get('ex5_type', "")
+            e_dur = r.get('ex5_duration', 0)
+            
             if idx < 5:
                 # Standard Logic
+                if idx == 4: # Standard Stationary Filter
+                     # If EX 5 type IS Run or Walk, skip this record for Stationary Graph
+                     if e_type and ("Run" in e_type or "Walk" in e_type) and "Stationary" not in e_type:
+                         continue
+                
                 if reps_list[idx] <= 0: continue
                 val = reps_list[idx]
             else:
                 # Handle Ex 6 (Run) / 7 (Walk)
-                # We need to check ex5_type
-                e_type = r.get('ex5_type', "")
-                e_dur = r.get('ex5_duration', 0)
                 if idx == 5: # Run
-                    if "Run" in e_type: val = e_dur
+                    if "Run" in e_type and "Stationary" not in e_type: val = e_dur
                 elif idx == 6: # Walk
                     if "Walk" in e_type: val = e_dur
                     
@@ -1198,12 +1280,20 @@ class Bio5BXApp(tk.Tk):
             if stats_json:
                 try:
                     data = json.loads(stats_json)
+                    
+                    # Handle V2 format
+                    segments = []
+                    if isinstance(data, dict):
+                        segments = data.get('segments', [])
+                    elif isinstance(data, list):
+                        segments = data
+                        
                     # Use Index Math: reliable 0-4
                     target_stats_idx = idx
-                    if idx >= 5: target_stats_idx = 4 # Map back to Ex 5 slot for stats?
+                    if idx >= 5: target_stats_idx = 4 # Map back to Ex 5 slot for stats
                     
-                    if target_stats_idx < len(data):
-                         item = data[target_stats_idx]
+                    if target_stats_idx < len(segments):
+                         item = segments[target_stats_idx]
                          hr = item.get('max_hr', 0)
                          hrv = item.get('hrv', 0)
                 except: pass
