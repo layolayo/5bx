@@ -113,7 +113,6 @@ class Bio5BXApp(tk.Tk):
         elif system_os == "Darwin": self.bell()
         else:
             self.bell()
-            print('\a')
             # Removed spd-say "done" as per user request
             # try: os.system('spd-say "done" &')
             # except: pass
@@ -929,110 +928,7 @@ class Bio5BXApp(tk.Tk):
 
         tk.Button(root, text="Close", font=("Arial", 14), command=root.destroy, bg="#e74c3c", fg="white").pack(pady=20)
     
-    def history_view_details(self):
-        selected = self.hist_tree.selection()
-        if not selected: return
-        
-        db_id = int(selected[0])
-        conn = sqlite3.connect(USER_DB_FILE)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute("SELECT * FROM history WHERE id=?", (db_id,))
-        record = c.fetchone()
-        conn.close()
-        
-        if not record: return
-        
-        stats_json = record['segment_stats'] if 'segment_stats' in record.keys() else None
-        
-        top = tk.Toplevel(self)
-        top.title(f"Details: {record['timestamp']}")
-        top.geometry("500x500")
-        top.configure(bg="#2c3e50")
-        
-        # Show Full Result String (Formatted)
-        v_str = record['verdict']
-        if "Strength" in v_str and "Cardio" in v_str and "/" in v_str:
-            parts = v_str.split("/")
-            s_part = parts[0].strip().replace("Strength (", "Strength - ").replace(")", "")
-            c_part = parts[1].strip().replace("Cardio (", "Cardio - ").replace(")", "")
-            final_v = f"RESULT\n{s_part}\n{c_part}"
-        else:
-            final_v = f"RESULT: {v_str}"
 
-        tk.Label(top, text=final_v, font=("Arial", 12, "bold"), bg="#2c3e50", fg="#f1c40f", justify=tk.CENTER, wraplength=480).pack(pady=(10, 5))
-
-        lbl_h = tk.Label(top, text="Physiological Breakdown", font=("Helvetica", 16, "bold"), bg="#2c3e50", fg="white")
-        lbl_h.pack(pady=5)
-        
-        txt = tk.Text(top, height=20, font=("Courier", 11), bg="#34495e", fg="white", padx=10, pady=10)
-        txt.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        report = []
-        if stats_json:
-            try:
-                data = json.loads(stats_json)
-                
-                # Check for available keys in the Row object
-                row_keys = record.keys()
-                
-                for i, item in enumerate(data):
-                    name = item['name']
-                    
-                    # Override Name for Cardio (Ex 5) if available
-                    if i == 4:
-                         prefix = "CARDIO - EXERCISE 5"
-                         
-                         # 1. Fetch Default Name from DB
-                         raw_c = str(record['chart'])
-                         c_chart = raw_c.split('/')[1] if '/' in raw_c else raw_c
-                         try:
-                             details_db = bx.get_exercise_detail(c_chart, 4)
-                             final_variant = details_db['name']
-                         except:
-                             final_variant = name # Fallback to JSON name
-                         
-                         # 2. Override if Run/Walk Recorded
-                         if 'ex5_type' in row_keys:
-                             e_type = record['ex5_type']
-                             if e_type and e_type != 'standard':
-                                 dur = record['ex5_duration'] if 'ex5_duration' in row_keys else 0
-                                 m = dur // 60
-                                 s = dur % 60
-                                 final_variant = f"{e_type} - {m}:{s:02d}"
-                         
-                         name = f"{prefix} ({final_variant})"
-
-                    # Tag Back Arch artifact logic
-                    hrv_str = f"{item.get('hrv', 0)} ms"
-                    if "Back Arch" in name: hrv_str = "(Artifact Ignored)"
-                    
-                    report.append(f"• {name.upper()}")
-                    avg = item.get('avg_hr', 0)
-                    mx = item.get('max_hr', 0)
-                    report.append(f"   HR:  Avg {avg} | Max {mx}")
-                    report.append(f"   HRV: {hrv_str}")
-                    
-                    # Mini analysis
-                    if mx > (self.bio_profile.max_hr * 0.9):
-                        report.append("   ⚠️ HIGH INTENSITY")
-                    report.append("")
-            except:
-                report.append("Error parsing detailed stats.")
-        else:
-            report.append("No detailed physiological data available for this session.")
-            report.append("(It may be from an older version of the app).")
-            
-        # Display Notes
-        if 'notes' in record.keys() and record['notes']:
-            report.append("")
-            report.append("--- SESSION NOTES ---")
-            report.append(record['notes'])
-            
-        txt.insert(tk.END, "\n".join(report))
-        
-        btn = tk.Button(top, text="Close", command=top.destroy)
-        btn.pack(pady=10)
 
     def open_chart_viewer(self):
         # Default to STRENGTH chart as primary
@@ -2116,8 +2012,8 @@ class Bio5BXApp(tk.Tk):
             m_top.geometry(f"+{x}+{y}")
             self.wait_window(m_top)
 
-        # 4. Serialize Detailed Stats for History
-        stats_data = []
+        # 4. Serialize Detailed Stats for History (EXTENDED V2)
+        segment_data = []
         for i, metric in enumerate(self.session_metrics):
             name = metric['name']
             hr_data = metric['hr']
@@ -2125,70 +2021,263 @@ class Bio5BXApp(tk.Tk):
             
             avg_hr_seg = int(sum(hr_data)/len(hr_data)) if hr_data else 0
             max_hr_seg = max(hr_data) if hr_data else 0
-            
-            # Use raw HRV average, markers will interpret artifact status later
             avg_hrv_seg = int(sum(hrv_data)/len(hrv_data)) if hrv_data else 0
             
-            stats_data.append({
+            # --- STATUS / INTENSITY CHECK (Restored from v10) ---
+            status_txt = "OK"
+            if max_hr_seg > (self.true_max_hr * 0.95): status_txt = "INTENSE"
+            if avg_hrv_seg < 10 and avg_hrv_seg > 0: status_txt += " / HIGH STRESS"
+            if status_txt == "OK": status_txt = "" # Don't save "OK" to keep JSON clean unless needed
+            
+            segment_data.append({
                 "name": name, 
                 "avg_hr": avg_hr_seg, 
                 "max_hr": max_hr_seg, 
-                "hrv": avg_hrv_seg
+                "hrv": avg_hrv_seg,
+                "status": status_txt
             })
         
-        stats_json = json.dumps(stats_data)
+        # New Struct: { segments: [], badges: [], verdict: "" }
+        milestone_data = []
+        if milestones:
+            for m in milestones:
+                milestone_data.append({'text': m['text'], 'image': m.get('image', '')})
+
+        stats_payload = {
+            "version": "2.0",
+            "segments": segment_data,
+            "badges": milestone_data,
+            "verdict_reason": reason
+        }
+        stats_json = json.dumps(stats_payload)
 
         # Ex 5 Metadata
         ex5_duration = 0
         if self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode:
              ex5_duration = self.reps_achieved[4]
-             # For DB consistency, set 'ex5' column (reps) to 1 if passed, 0 if fail?
-             # Or just store 1 to indicate 'done'. The history table has ex5_duration now.
              self.reps_achieved[4] = 1 if c_missed == 0 else 0
-             
+              
         self.db_update_split_level(self.user_id, s_new_c, s_new_l, c_new_c, c_new_l)
         
-        # We need to modify db_add_history to accept ex5_type and duration
-        # We'll rely on it failing or update implementation? 
-        # I need to update db_add_history signature.
         self.last_history_id = self.db_add_history(self.user_id, f"{s_chart}/{c_chart}", f"{s_level}/{c_level}", status, avg_session_hr, max_session_hr, end_session_rmssd, self.reps_achieved, stats_json, 
                                                    ex5_type=self.current_cardio_mode, ex5_duration=ex5_duration)
 
-        frame = ttk.Frame(self); frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        # --- UI REFACTOR: Session Summary (Read-Only) ---
+        self._clear()
+        frame = ttk.Frame(self)
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
         ttk.Label(frame, text="Workout Complete", style="Header.TLabel").pack()
+
+        # Split UI: Top (Stats), Bottom (Verdict/Badges)
+        paned = ttk.PanedWindow(frame, orient=tk.VERTICAL)
+        paned.pack(fill=tk.BOTH, expand=True, pady=10)
         
-        # Format Verdict Label (Multiline)
+        # Section 1: Session Stats (Read-Only)
+        f_stats = ttk.Labelframe(paned, text="Session Stats (HR/HRV Breakdown)")
+        paned.add(f_stats, weight=2)
+        
+        scr_s = ttk.Scrollbar(f_stats)
+        scr_s.pack(side=tk.RIGHT, fill=tk.Y)
+        txt_s = tk.Text(f_stats, height=8, font=("Courier", 10), bg="#2c3e50", fg="white", yscrollcommand=scr_s.set)
+        txt_s.pack(fill=tk.BOTH, expand=True)
+        self.session_stats_text = "\n".join(report_text)
+        txt_s.insert(tk.END, self.session_stats_text)
+        txt_s.config(state=tk.DISABLED) 
+        scr_s.config(command=txt_s.yview)
+
+        # Section 2: Verdict & Badges (Bottom Frame)
+        f_bottom = ttk.Frame(paned) # Use frame inside paned
+        paned.add(f_bottom, weight=1)
+        
+        # Verdict Frame
+        f_verdict = ttk.Labelframe(f_bottom, text="Session Verdict")
+        f_verdict.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0,10))
+        
         disp_status = status.replace(" / ", "\n")
-        ttk.Label(frame, text=f"{disp_status}", font=("Arial", 16, "bold"), foreground=color, justify=tk.CENTER).pack(pady=5)
-        ttk.Label(frame, text=reason, font=("Arial", 12)).pack()
+        ttk.Label(f_verdict, text=disp_status, font=("Arial", 14, "bold"), foreground=color, justify=tk.CENTER).pack(pady=5)
+        ttk.Label(f_verdict, text=reason, font=("Arial", 10), wraplength=400).pack(pady=5)
         
-        ttk.Label(frame, text="Session Breakdown (Notes):", foreground="white").pack(anchor="w", padx=40)
-        
-        # Append Verdict to Report Text so it is saved in Notes
-        report_text.append("-" * 20)
-        report_text.append(f"VERDICT: {status}")
-        report_text.append("-" * 20)
-
-        text_frame = ttk.Frame(frame); text_frame.pack(fill=tk.BOTH, expand=True, pady=10)
-        scr = ttk.Scrollbar(text_frame); scr.pack(side=tk.RIGHT, fill=tk.Y)
-        self.txt_report = tk.Text(text_frame, height=15, font=("Courier", 10), bg="#34495e", fg="white", yscrollcommand=scr.set)
-        self.txt_report.pack(fill=tk.BOTH, expand=True); self.txt_report.insert(tk.END, "\n".join(report_text)); scr.config(command=self.txt_report.yview)
-
-        ttk.Button(frame, text="Save Notes & Exit", command=self.save_notes_and_exit).pack(pady=10)
-    
-    def save_notes_and_exit(self):
-        # 1. Get Notes
-        notes = self.txt_report.get("1.0", tk.END).strip()
-        
-        # 2. Update DB if we have an ID
-        if hasattr(self, 'last_history_id') and self.last_history_id:
-            self.db_update_notes(self.last_history_id, notes)
+        # Badges Frame
+        if milestones:
+            f_badges = ttk.Labelframe(f_bottom, text="Badges Earned")
+            f_badges.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
             
-        # 3. Proceed
+            if not hasattr(self, 'badge_imgs'): self.badge_imgs = []
+            
+            for m_obj in milestones:
+                b_row = tk.Frame(f_badges)
+                b_row.pack(anchor="w", pady=2)
+                
+                # Image
+                img_path = m_obj.get('image')
+                if img_path:
+                    try:
+                        pil_img = Image.open(img_path)
+                        pil_img.thumbnail((30, 30))
+                        tk_img = ImageTk.PhotoImage(pil_img)
+                        self.badge_imgs.append(tk_img)
+                        tk.Label(b_row, image=tk_img).pack(side=tk.LEFT, padx=5)
+                    except: pass
+                
+                tk.Label(b_row, text=m_obj['text'], font=("Arial", 9, "bold")).pack(side=tk.LEFT)
+        
+        # Save Button (Just Exit now)
+        ttk.Button(frame, text="Finish & Close", command=self.show_profile_linker).pack(pady=5)
+
+    def save_notes_and_exit(self):
+        # Allow pass through
         self.show_profile_linker()
 
     # --- HISTORY GRAPH LOGIC ---
     # --- HISTORY POPUP (STRICT ID FILTERING) ---
+    def history_view_details(self):
+        selected = self.hist_tree.selection()
+        if not selected: return
+        
+        db_id = int(selected[0])
+        conn = sqlite3.connect(USER_DB_FILE)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT * FROM history WHERE id=?", (db_id,))
+        record = c.fetchone()
+        conn.close()
+        
+        if not record: return
+        
+        stats_json = record['segment_stats'] if 'segment_stats' in record.keys() else None
+        
+        top = tk.Toplevel(self)
+        top.title(f"Details: {record['timestamp']}")
+        top.geometry("750x700") # Wider to prevent wrapping
+        top.configure(bg="#2c3e50")
+        
+        # We don't need the header label repeated if we have the text
+        # tk.Label(top, text="Session Details", font=("Helvetica", 16, "bold"), bg="#2c3e50", fg="white").pack(pady=5)
+        
+        txt = tk.Text(top, height=30, font=("Courier", 11), bg="#34495e", fg="white", padx=15, pady=15)
+        txt.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        report = []
+        
+        # A. PARSE JSON DATA
+        segments = []
+        badges = []
+        verdict_reason = ""
+        
+        if stats_json:
+            try:
+                data = json.loads(stats_json)
+                if isinstance(data, dict):
+                    # V2
+                    segments = data.get('segments', [])
+                    badges = data.get('badges', [])
+                    verdict_reason = data.get('verdict_reason', "")
+                else:
+                    # V1 (List)
+                    segments = data
+            except:
+                report.append("[Error parsing stats JSON]")
+
+        # B. RENDER SEGMENTS (with Reps)
+        row_keys = record.keys()
+        
+        # Map numeric index to DB columns for Reps
+        rep_cols = ['ex1', 'ex2', 'ex3', 'ex4', 'ex5'] # We might need logic for Ex 5
+        
+        if segments:
+            for i, item in enumerate(segments):
+                name = item['name']
+                
+                # --- EX 5 NAME LOGIC ---
+                if i == 4:
+                     prefix = "CARDIO - EXERCISE 5"
+                     raw_c = str(record['chart'])
+                     c_chart = raw_c.split('/')[1] if '/' in raw_c else raw_c
+                     try:
+                         details_db = bx.get_exercise_detail(c_chart, 4)
+                         final_variant = details_db['name']
+                     except:
+                         final_variant = name 
+                     
+                     if 'ex5_type' in row_keys:
+                         e_type = record['ex5_type']
+                         if e_type and e_type != 'standard':
+                             dur = record['ex5_duration'] if 'ex5_duration' in row_keys else 0
+                             m = dur // 60
+                             s = dur % 60
+                             final_variant = f"{e_type} - {m}:{s:02d}"
+                     name = f"{prefix} ({final_variant})"
+                # -----------------------
+
+                # --- REPS LOGIC ---
+                reps_line = ""
+                if i < 4:
+                    # Ex 1-4: Show Reps
+                    val = record[rep_cols[i]] if rep_cols[i] in row_keys else 0
+                    if val > 0:
+                        reps_line = f"   REPS: {val}"
+                # Ex 5: usually implied by title (Time) or Stationary (Reps implied?). 
+                if i == 4 and "Stationary" in name:
+                     val = record['ex5'] if 'ex5' in row_keys else 0
+                     if val > 0: reps_line = f"   REPS: {val}"
+                # ------------------
+
+                hrv_str = f"{item.get('hrv', 0)} ms"
+                if "Back Arch" in name: hrv_str = "(Artifact Ignored)"
+                
+                report.append(f"• {name.upper()}")
+                if reps_line: report.append(reps_line)
+                
+                avg = item.get('avg_hr', 0)
+                mx = item.get('max_hr', 0)
+                report.append(f"   HR:  Avg {avg} | Max {mx}")
+                report.append(f"   HRV: {hrv_str}")
+                
+                # --- STATUS DISPLAY ---
+                status_txt = item.get('status', '')
+                if status_txt and status_txt != "OK":
+                     report.append(f"   -> ⚠️ {status_txt}")
+                     
+                report.append("")
+        else:
+            report.append("(No detailed physiological stats available)")
+            report.append("")
+
+        # C. SESSION NOTES - REMOVED PER USER REQUEST
+        
+        # D. VERDICT (Formatted)
+        v_str = record['verdict']
+        if "Strength" in v_str and "Cardio" in v_str and "/" in v_str:
+            parts = v_str.split("/")
+            s_part = parts[0].strip().replace("Strength (", "Strength - ").replace(")", "")
+            c_part = parts[1].strip().replace("Cardio (", "Cardio - ").replace(")", "")
+            final_v = f"VERDICT:\n{s_part}\n{c_part}"
+        else:
+            final_v = f"VERDICT:\n{v_str}"
+        
+        report.append(final_v)
+        if verdict_reason:
+            # Maybe show reason below verdict? 
+            # User request didn't explicitly ask for the long reason text in the example, 
+            # but it's valuable. I'll add it indented or just below.
+            # User example: Just showed Verdict. 
+            pass # Keep it clean as per request.
+
+        report.append("")
+
+        # E. BADGES
+        if badges:
+            report.append("BADGES EARNED:")
+            for b in badges:
+                report.append(f"🏆 {b['text']}")
+            report.append("")
+
+        txt.insert(tk.END, "\n".join(report))
+        
+        btn = tk.Button(top, text="Close", command=top.destroy)
+        btn.pack(pady=10)
+    
     def show_exercise_history(self, target_chart_id, target_idx, title_name):
         """
         Shows a graph of progress for a specific exercise name.
@@ -2226,6 +2315,7 @@ class Bio5BXApp(tk.Tk):
             if r['ex1']: reps_list = [r['ex1'], r['ex2'], r['ex3'], r['ex4'], r['ex5']]
             
             if target_idx < 5:
+                # Use index directly from the DB row data we just extracted
                 val = reps_list[target_idx]
             else:
                 # Handle Ex 6 (Run) / 7 (Walk)
@@ -2244,6 +2334,10 @@ class Bio5BXApp(tk.Tk):
             if stats_json:
                 try:
                     data = json.loads(stats_json)
+                    # Handle V2 Struct
+                    if isinstance(data, dict):
+                         data = data.get('segments', [])
+
                     # Use Index Math
                     t_stat = target_idx
                     if target_idx >= 5: t_stat = 4
@@ -2378,4 +2472,13 @@ class Bio5BXApp(tk.Tk):
 
 if __name__ == "__main__":
     app = Bio5BXApp()
-    app.mainloop()
+    try:
+        app.mainloop()
+    except (KeyboardInterrupt, SystemExit):
+        pass
+    finally:
+        if hasattr(app, 'sensor') and app.sensor:
+            try: app.sensor.stop()
+            except: pass
+        try: app.destroy()
+        except: pass
