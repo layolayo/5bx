@@ -73,4 +73,35 @@ Once you reach the level assigned to your age group (e.g., Chart 3 for a 35-year
 
 ---
 
-> *"The 5BX Plan is designed to bring you to a level of physical fitness that will enable you to meet the physical demands of your daily work and play."* — **RCAF Manual**
+## Visual Guide: The Charts
+
+The program is built on **6 Charts**. Each chart represents a significant increase in difficulty. Below is **Chart 1**, which covers the beginner stages.
+
+### How to Read the Chart
+*   **Columns**: The 5 Exercises (1-5).
+*   **Rows**: The 12 Levels of difficulty (D- to A+).
+*   **The Numbers**: The exact number of **Repetitions** you must complete.
+*   **Time Limits**:
+    *   **Ex 1**: 2 Minutes
+    *   **Ex 2, 3, 4**: 1 Minute each
+    *   **Ex 5**: 6 Minutes
+
+### Chart 1: Beginner
+
+| Grade | Ex 1 (Toe Touch) | Ex 2 (Sit Up) | Ex 3 (Bk Ext) | Ex 4 (Push Up) | Ex 5 (Run) |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **A+** | **20** | **18** | **18** | **13** | **400** |
+| **A** | **18** | **17** | **17** | **12** | **375** |
+| **A-** | **16** | **15** | **16** | **11** | **335** |
+| **B+** | **14** | **13** | **15** | **9** | **320** |
+| **B** | **12** | **12** | **14** | **8** | **305** |
+| **B-** | **10** | **11** | **13** | **7** | **280** |
+| **C+** | **8** | **9** | **12** | **6** | **260** |
+| **C** | **7** | **8** | **10** | **5** | **235** |
+| **C-** | **6** | **7** | **8** | **4** | **205** |
+| **D+** | **4** | **5** | **6** | **3** | **175** |
+| **D** | **3** | **4** | **5** | **3** | **145** |
+| **D-** | **2** | **3** | **4** | **2** | **100** |
+
+> **Goal**: Your aim is to move UP this table. Once you conquer Level 12 (A+), you graduate to **Chart 2, Level 1**.
+
