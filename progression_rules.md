@@ -4,8 +4,6 @@
 
 This document outlines the "hidden logic" of the 5BX App. While the interface is simple, the engine under the hood is constantly evaluating your performance to ensure you are always in the optimal training zone.
 
----
-
 ## 🎯 1. The Golden Rule
 
 The fundamental law of 5BX is simple:
@@ -13,8 +11,6 @@ The fundamental law of 5BX is simple:
 
 *   **Pass**: If you hit the target reps (or beat the target time), you qualify for promotion.
 *   **Miss**: If you miss by even 1 rep, you **MAINTAIN**. You do not drop down instantly, but you cannot advance.
-
----
 
 ## 🚀 2. Going Up: Progression
 
@@ -30,8 +26,6 @@ When you pass a level, the system calculates *how well* you passed to decide you
 *   **Condition**: Your performance was essentially "too good" for your current level.
 *   **Result**: You skip levels entirely (e.g., C1 A- ➡ C1 A+).
 *   **Logic**: The app internally checks every level in your chart. If your reps were high enough to pass a higher level, you are instantly catapulted there.
-
----
 
 ## ⚔️ 3. Split Mode: Strength vs. Cardio
 
@@ -53,8 +47,6 @@ The app tracks **Strength** (Ex 1-4) and **Cardio** (Ex 5) independently.
 You can level up in Strength while staying put in Cardio.
 > *Example Verdict: **Strength (LEAPFROG 🚀) / Cardio (MAINTAIN 🛑)***
 
----
-
 ## 🏔️ 4. The Big Leagues: Changing Charts
 
 Moving from one Chart to the next (e.g., Chart 1 to Chart 2) is a major milestone.
@@ -62,8 +54,6 @@ Moving from one Chart to the next (e.g., Chart 1 to Chart 2) is a major mileston
 *   **The Gatekeeper**: You must reach and pass **Level 12 (A+)** of your current Chart.
 *   **The Step Up**: Your next promotion sends you to **Level 1 (D-)** of the next Chart.
 *   **No Skipping**: You cannot "Leapfrog" across charts. You must beat the final boss (Level 12) to unlock the next world.
-
----
 
 ## 📉 5. Setbacks & Comebacks
 

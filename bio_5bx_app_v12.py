@@ -12,6 +12,7 @@ import platform
 import sys
 import csv
 import statistics
+import shutil
 from PIL import Image, ImageTk
 
 # Match v3 imports for graphing
@@ -31,7 +32,14 @@ USER_DB_FILE = "user_progress.db"
 PROFILE_DIR = "ant_user_profiles"
 SESSION_DIR = "ant_sessions"
 IMG_DIR = "images"
+BACKUP_DIR = "ant_user_profiles/backups"
 CALIBRATION_EXPIRY_DAYS = 30
+PHASE_DURATIONS = {
+    "REST": 60,
+    "STRESS": 60,
+    "EXERTION": 45,
+    "RECOVERY": 60
+}
 
 class SessionLogger:
     def __init__(self, user_name):
@@ -348,7 +356,7 @@ class Bio5BXApp(tk.Tk):
         self.lbl_device_dash.pack(pady=5)
         # --------------------------------------------------
 
-        ttk.Label(frame, text="Select Calibration Profile", style="Header.TLabel", font=("Helvetica", 20, "bold")).pack(pady=10)
+        ttk.Label(frame, text="Select User Profile", style="Header.TLabel", font=("Helvetica", 20, "bold")).pack(pady=10)
 
         profiles = glob.glob(os.path.join(PROFILE_DIR, "*_profile.json"))
 
@@ -463,40 +471,69 @@ class Bio5BXApp(tk.Tk):
         tk.Button(root, text="Create", command=save, bg="#2ecc71").pack(pady=20)
 
     def launch_calibration_app(self):
-        # 1. STOP SENSOR to release USB resource
+        # 1. STOP SENSOR (Release Resource)
         if self.sensor:
             self.sensor.stop()
-            time.sleep(1) # Give it a moment to close
+            time.sleep(1) # Give it a moment to release
             
         if hasattr(self, 'lbl_device_dash'):
-            self.lbl_device_dash.config(text="📡 Status: Calibration Mode (Sensor Paused)...", foreground="#f39c12")
+            self.lbl_device_dash.config(text="📡 Status: Calibration Wizard Running...", foreground="#f39c12")
             
-        # 2. LAUNCH APP
+        # 2. PREPARE USER DATA
+        user_data = None
+        try:
+            # CASE A: Already Logged In (Dashboard)
+            if hasattr(self, 'username') and self.username and hasattr(self, 'profile_data') and self.profile_data:
+                 user_data = {
+                    "name": self.profile_data.get("name", self.username),
+                    "dob": self.profile_data.get("dob"),
+                    "age": self.profile_data.get("age", 30)
+                 }
+            
+            # CASE B: Selecting from Linker (Not Logged In)
+            elif hasattr(self, 'lst_profiles') and self.lst_profiles:
+                selection = self.lst_profiles.curselection()
+                if selection:
+                    name = self.lst_profiles.get(selection[0])
+                    # Load JSON to get DOB for this user
+                    clean_name = name.lower().replace(" ", "_").strip()
+                    prof_path = os.path.join(PROFILE_DIR, f"{clean_name}_profile.json")
+                    if os.path.exists(prof_path):
+                        with open(prof_path, 'r') as f:
+                            data = json.load(f)
+                            if "dob" in data:
+                                user_data = {
+                                    "name": data.get("name", name),
+                                    "dob": data.get("dob"),
+                                    "age": data.get("age", 30)
+                                }
+        except Exception as e:
+            print(f"Error fetching user for wizard: {e}")
+
+        if not user_data:
+            messagebox.showwarning("Selection Required", "Please select a user profile to run calibration.")
+            # Ensure sensor is restarted if we stopped it
+            if self.sensor and not self.sensor.running: self.init_sensor()
+            return
+
+        # 3. LAUNCH NATIVE WIZARD
         try: 
-            self.calib_proc = subprocess.Popen([sys.executable, "ant_calibration_app.py"])
-            # 3. MONITOR
-            self.check_calibration_process()
+            CalibrationWizard(self, initial_user_data=user_data) 
         except Exception as e: 
             messagebox.showerror("Error", f"Could not launch wizard: {e}")
-            # Try to restart sensor if failed
-            self.init_sensor()
+            self.finish_calibration_wizard()
             
-    def check_calibration_process(self):
-        if hasattr(self, 'calib_proc') and self.calib_proc.poll() is None:
-            # Still running
-            self.after(1000, self.check_calibration_process)
-        else:
-            # Finished
-            self.calib_proc = None
-            if hasattr(self, 'lbl_device_dash'):
-                self.lbl_device_dash.config(text="📡 Status: Restarting Sensor...", foreground="#95a5a6")
-            
-            # Restart Sensor
-            self.init_sensor()
-            
-            # Refresh profiles incase one was created/calibrated
-            if self.linker_active:
-                self.show_profile_linker()
+    def finish_calibration_wizard(self):
+        # Called by Wizard when it closes
+        if hasattr(self, 'lbl_device_dash'):
+            self.lbl_device_dash.config(text="📡 Status: Restarting Sensor...", foreground="#95a5a6")
+        
+        # Restart Sensor
+        self.init_sensor()
+        
+        # Refresh profiles
+        if self.linker_active:
+            self.show_profile_linker()
 
     def check_profile_date(self, event):
         selection = self.lst_profiles.curselection()
@@ -665,6 +702,7 @@ class Bio5BXApp(tk.Tk):
         tk.Button(btn_frame, text="📊 View Charts", bg="#9b59b6", fg="white", font=("Arial", 10, "bold"), command=self.open_chart_viewer).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
         tk.Button(btn_frame, text="🏆 Badges", bg="#f1c40f", fg="black", font=("Arial", 10, "bold"), command=self.show_badges_screen).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
         tk.Button(btn_frame, text="📘 Manual", bg="#2980b9", fg="white", font=("Arial", 10, "bold"), command=self.show_manual_popup).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
+        tk.Button(btn_frame, text="⚡ Calibrate", bg="#e67e22", fg="white", font=("Arial", 10, "bold"), command=self.launch_calibration_app).pack(side=tk.LEFT, padx=10, fill=tk.X, expand=True)
 
         # STRENGTH SECTION
         preview_s = ttk.LabelFrame(frame, text="Strength Exercises")
@@ -1531,7 +1569,7 @@ class Bio5BXApp(tk.Tk):
                 orig_w, orig_h = load.size
                 target_w = 400
                 target_h = int(target_w * (orig_h / orig_w))
-                if target_h > 300: target_h = 300; target_w = int(target_h * (orig_w / orig_h))
+                if target_h > 300: target_h = 300; target_w = int(target_h * (orig_h / orig_h))
                 load = load.resize((target_w, target_h), Image.Resampling.LANCZOS)
                 render = ImageTk.PhotoImage(load)
                 img_lbl = tk.Label(frame, image=render, bg="#2c3e50")
@@ -2788,7 +2826,9 @@ class Bio5BXApp(tk.Tk):
         tk.Button(top, text="Close", command=top.destroy).pack(pady=10)
 
     def _clear(self):
-        for widget in self.winfo_children(): widget.destroy()
+        for widget in self.winfo_children():
+            if isinstance(widget, tk.Toplevel): continue
+            widget.destroy()
     def destroy(self):
         self.workout_active = False; self.dashboard_active = False; self.linker_active = False
         if self.sensor:
@@ -2890,7 +2930,7 @@ class Bio5BXApp(tk.Tk):
     def show_manual_popup(self):
         root = tk.Toplevel(self)
         root.title("5BX Manual & Rules")
-        root.geometry("900x800")
+        root.geometry("1400x900") # Widened to support full table width
         root.configure(bg="#2c3e50")
         
         # Sidebar
@@ -2915,9 +2955,11 @@ class Bio5BXApp(tk.Tk):
         self.doc_text.tag_config("quote", font=("Georgia", 11, "italic"), lmargin1=20, lmargin2=20, foreground="#7f8c8d")
         
         # Table: Courier font + Tab Stops for alignment
-        # Tabs: 1cm (Grade), 3.5cm (Ex1), 6cm (Ex2), 8.5cm (Ex3), 11cm (Ex4), 13.5cm (Ex5)
-        self.doc_text.tag_config("table", font=("Courier New", 10), background="#ecf0f1", 
-                                 tabs=("1.5c", "4.5c", "7.5c", "10.5c", "13.5c", "16.5c"))
+        # Table: Fixed Font + Wide Tab Stops
+        # Headers like "Ex 1 (Toe Touch)" need >3cm space
+        # Stops: 2c, 6c, 10c, 14c, 18c, 22c
+        self.doc_text.tag_config("table", font="TkFixedFont", background="#ecf0f1", 
+                                 tabs=("2c", "6c", "10c", "14c", "18c", "22c"))
         
         self.doc_images = [] # Keep references
         
@@ -2943,6 +2985,9 @@ class Bio5BXApp(tk.Tk):
         tk.Button(sidebar, text="Progression Rules", bg="#8e44ad", fg="white", font=("Arial", 11, "bold"),
                   command=lambda: load_doc("progression_rules.md")).pack(fill=tk.X, padx=10, pady=5)
                   
+        tk.Button(sidebar, text="Calibration Guide", bg="#e67e22", fg="white", font=("Arial", 11, "bold"),
+                  command=lambda: load_doc("calibration_guide.md")).pack(fill=tk.X, padx=10, pady=5)
+                  
         tk.Button(sidebar, text="Close", bg="#c0392b", fg="white", command=root.destroy).pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=20)
         
         # Default Load
@@ -2952,11 +2997,58 @@ class Bio5BXApp(tk.Tk):
         self.doc_text.config(state=tk.NORMAL)
         self.doc_text.delete("1.0", tk.END)
         self.doc_images = []
+        self.table_buffer = [] # Buffer for contiguous table lines
         
         lines = content.split('\n')
         
+        def flush_table_buffer():
+            if not self.table_buffer: return
+            
+            # Create a Frame for the table
+            table_frame = tk.Frame(self.doc_text, bg="#bdc3c7", padx=1, pady=1) # Border effect
+            
+            # Parse Data
+            raw_rows = []
+            for l in self.table_buffer:
+                # | Cell | Cell | -> ['Cell', 'Cell']
+                cells = [c.strip() for c in l.strip().split('|')]
+                if len(cells) > 0 and cells[0] == '': cells.pop(0)
+                if len(cells) > 0 and cells[-1] == '': cells.pop(-1)
+                raw_rows.append(cells)
+            
+            # Render
+            for r_idx, row_data in enumerate(raw_rows):
+                # Check for Divider Row (e.g. ---)
+                if all(c.replace('-', '').replace(':', '').strip() == '' for c in row_data):
+                    continue
+                    
+                is_header = (r_idx == 0)
+                bg_color = "#34495e" if is_header else ("#ecf0f1" if r_idx % 2 == 0 else "#ffffff")
+                fg_color = "white" if is_header else "black"
+                font_style = ("Arial", 11, "bold") if is_header else ("Arial", 10)
+                
+                for c_idx, cell_text in enumerate(row_data):
+                    clean_text = cell_text.replace("**", "")
+                    lbl = tk.Label(table_frame, text=clean_text, font=font_style, 
+                                   bg=bg_color, fg=fg_color, padx=10, pady=5, borderwidth=1, relief="solid")
+                    lbl.grid(row=r_idx, column=c_idx, sticky="nsew")
+            
+            # Embed the frame
+            self.doc_text.window_create(tk.END, window=table_frame)
+            self.doc_text.insert(tk.END, "\n")
+            self.table_buffer = []
+
         for line in lines:
-            line = line.strip()
+            stripped = line.strip()
+            
+            # Check for Table Line
+            if stripped.startswith("|"):
+                self.table_buffer.append(stripped)
+                continue
+            else:
+                # Not a table line -> Flush header if exists
+                flush_table_buffer()
+                
             # Headers
             if line.startswith("# "):
                 self.doc_text.insert(tk.END, line[2:] + "\n", "h1")
@@ -2971,12 +3063,11 @@ class Bio5BXApp(tk.Tk):
                 self.doc_text.insert(tk.END, clean + "\n", "quote")
                 
             # Images: ![alt](path)
-            elif line.strip().startswith("!["):
+            elif stripped.startswith("!["):
                 try:
-                    line = line.strip()
-                    start = line.find("(") + 1
-                    end = line.find(")")
-                    path = line[start:end]
+                    s = line.find("(") + 1
+                    e = line.find(")")
+                    path = line[s:e]
                     full_path = os.path.join(os.getcwd(), path)
                     
                     if os.path.exists(full_path):
@@ -2994,29 +3085,9 @@ class Bio5BXApp(tk.Tk):
                 except:
                     self.doc_text.insert(tk.END, "[Image Load Failed]\n")
             
-            # Tables
-            elif line.strip().startswith("|"):
-                l = line.strip()
-                # Skip divider lines e.g. |---|
-                if ":--" in l or "---" in l: 
-                    continue
-                    
-                # Split by pipe
-                cells = l.split("|")
-                # Remove empty first/last from split if they exist
-                if len(cells) > 0 and cells[0] == "": cells.pop(0)
-                if len(cells) > 0 and cells[-1] == "": cells.pop(-1)
-                
-                # Clean Clean bold/whitespace
-                clean_cells = [c.replace("**", "").strip() for c in cells]
-                
-                # Join with tabs
-                formatted_line = "\t".join(clean_cells)
-                self.doc_text.insert(tk.END, formatted_line + "\n", "table")
-
-            # Dividers
+            # Dividers (Horizontal Rules)
             elif line.startswith("---"):
-                 self.doc_text.insert(tk.END, "-"*40 + "\n", "table")
+                 self.doc_text.insert(tk.END, "_"*60 + "\n", "quote") # Lighter divider
                 
             # Normal Text (Partial Bold Parsing)
             else:
@@ -3030,7 +3101,279 @@ class Bio5BXApp(tk.Tk):
                     self.doc_text.insert(tk.END, line)
                 self.doc_text.insert(tk.END, "\n")
         
+        # Final flush
+        flush_table_buffer()
         self.doc_text.config(state=tk.DISABLED)
+
+# --- CALIBRATION WIZARD ---
+class CalibrationWizard(tk.Toplevel):
+    def __init__(self, parent, initial_user_data=None):
+        super().__init__(parent)
+        self.parent = parent
+        self.title("Biofeedback Calibration Wizard")
+        self.geometry("600x800")
+        self.configure(bg="#2c3e50")
+        
+        # Data State
+        self.sensor = None
+        self.user_name = ""
+        self.user_dob = ""
+        self.user_age = 30
+        self.current_phase = ""
+        self.is_recording = False
+        self.dashboard_active = False 
+
+        self.phase_data_hr = []
+        self.phase_data_rmssd = []
+
+        self.results = {
+            "rest": {}, "stress": {}, "exertion": {}, "recovery": {}
+        }
+        
+        # Start Sensor Logic
+        self.dashboard_active = True 
+        self.init_sensor_loop()
+
+        # UI Setup - Jump straight to Phase 1
+        if initial_user_data:
+            self.user_name = initial_user_data.get('name', 'Unknown')
+            self.user_dob = initial_user_data.get('dob', '')
+            self.user_age = initial_user_data.get('age', 30)
+            
+            # Start Wizard
+            self.show_instruction("REST")
+            self.update_dashboard_loop()
+        else:
+             # Fallback (Should not happen in correct usage)
+             tk.Label(self, text="Error: No User Profile Data Loaded", fg="red").pack(pady=50)
+            
+    def init_sensor_loop(self):
+        # The parent app has supposedly stopped its sensor.
+        # We try to create a new one.
+        if self.sensor and self.sensor.status == "Active": return
+
+        try:
+            if self.sensor: 
+                try: self.sensor.stop() 
+                except: pass
+                
+            self.sensor = AntHrvSensor()
+            self.sensor.start()
+            self.after(500, self.check_startup_status)
+        except Exception as e:
+            if hasattr(self, 'lbl_device_dash'):
+                self.lbl_device_dash.config(text=f"📡 Searching... {e}", foreground="#e67e22")
+            self.after(2000, self.init_sensor_loop)
+
+    def check_startup_status(self):
+        if not self.sensor: return
+        data = self.sensor.get_data()
+        status = data.get('status', 'Error')
+        if status == "Active" or status == "Initializing":
+             self.update_dashboard_loop()
+        else:
+             if hasattr(self, 'lbl_device_dash'):
+                self.lbl_device_dash.config(text=f"📡 {status}... (Retrying)", foreground="#e67e22")
+             self.after(2000, self.init_sensor_loop)
+
+    # --- SOUND ENGINE ---
+    def play_beep(self):
+        self.parent.bell() 
+
+    # --- AGE CALCULATION ---
+    def calculate_age(self, dob_str):
+        try:
+            birth_date = datetime.datetime.strptime(dob_str, "%Y-%m-%d").date()
+            today = datetime.date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            return age
+        except ValueError:
+            return None
+
+
+
+
+
+    def show_instruction(self, phase):
+        self.current_phase = phase
+        self.is_recording = False
+        self.clear_screen()
+
+        texts = {
+            "REST": "PHASE 1: RESTING BASELINE\n\nSit comfortably. Close your eyes.\nBreathe normally.\nDo not talk or move.",
+            "STRESS": "PHASE 2: NECKER CUBE TEST\n\nFocus on the cube below.\nTry to HOLD it in one perspective.\nCount silently each time it flips involuntarily.",
+            "EXERTION": "PHASE 3: PHYSICAL EXERTION\n\nStand up.\nDo Jumping Jacks or High Knees vigorously.\nGet your heart rate up!",
+            "RECOVERY": "PHASE 4: VAGAL RECOVERY\n\nSit down immediately.\nClose your eyes.\nInhale deeply (4s), Exhale slowly (6s)."
+        }
+
+        frame = ttk.Frame(self)
+        frame.pack(expand=True, fill='both', padx=20)
+
+        ttk.Label(frame, text=texts[phase], justify="center", font=("Arial", 14)).pack(pady=10)
+
+        self.lbl_device_dash = ttk.Label(frame, text="📡 Searching...", foreground="#95a5a6", font=("Arial", 10))
+        self.lbl_device_dash.pack(pady=5)
+
+        if phase == "STRESS":
+            self.draw_necker_cube(frame)
+
+        self.btn_next = ttk.Button(frame, text="BEGIN PHASE", command=self.run_phase_timer)
+        self.btn_next.pack(pady=20)
+
+        self.lbl_live = ttk.Label(frame, text="Waiting for signal...", foreground="yellow")
+        self.lbl_live.pack()
+        self.update_live_preview()
+
+    def update_dashboard_loop(self):
+        if not self.dashboard_active: return
+        if self.sensor:
+            data = self.sensor.get_data()
+            bpm = data.get('bpm', 0)
+            status = data.get('status', 'Initializing')
+            
+            if status == "Active" or bpm > 0:
+                txt = f"✅ Active | Live HR: {bpm}"
+                if hasattr(self, 'lbl_device_dash'): self.lbl_device_dash.config(text=txt, foreground="#2ecc71")
+            else:
+                if hasattr(self, 'lbl_device_dash'): self.lbl_device_dash.config(text=f"📡 {status}...", foreground="#95a5a6")
+        self.after(1000, self.update_dashboard_loop)
+
+    def draw_necker_cube(self, parent):
+        c = tk.Canvas(parent, width=200, height=200, bg="#2c3e50", highlightthickness=0)
+        c.pack(pady=5)
+        c.create_rectangle(50, 50, 150, 150, outline="cyan", width=3)
+        c.create_rectangle(80, 20, 180, 120, outline="cyan", width=3)
+        c.create_line(50, 50, 80, 20, fill="cyan", width=3)
+        c.create_line(150, 50, 180, 20, fill="cyan", width=3)
+        c.create_line(50, 150, 80, 120, fill="cyan", width=3)
+        c.create_line(150, 150, 180, 120, fill="cyan", width=3)
+
+    def update_live_preview(self):
+        if self.is_recording or self.current_phase == "FINISHED": return
+        if self.sensor:
+            data = self.sensor.get_data()
+            self.lbl_live.config(text=f"♥ {data.get('bpm',0)} bpm  |  ⚡ {data.get('rmssd',0):.3f} ms")
+        self.after(1000, self.update_live_preview)
+
+    def run_phase_timer(self):
+        self.is_recording = True
+        self.btn_next.config(state="disabled")
+        self.phase_data_hr = []
+        self.phase_data_rmssd = []
+        self.remaining_time = PHASE_DURATIONS[self.current_phase]
+        self.record_loop()
+
+    def record_loop(self):
+        if self.remaining_time > 0:
+            if self.sensor:
+                data = self.sensor.get_data()
+                if data.get('bpm',0) > 0:
+                    self.phase_data_hr.append(data['bpm'])
+                    self.phase_data_rmssd.append(data.get('rmssd',0))
+                self.lbl_live.config(text=f"RECORDING... {self.remaining_time}s\n♥ {data.get('bpm',0)} | ⚡ {data.get('rmssd',0):.3f}")
+            self.remaining_time -= 1
+            self.after(1000, self.record_loop)
+        else:
+            self.finish_phase()
+
+    def finish_phase(self):
+        self.play_beep()
+        self.is_recording = False
+        
+        if len(self.phase_data_hr) > 0:
+            avg_hr = statistics.mean(self.phase_data_hr)
+            max_hr = max(self.phase_data_hr)
+            avg_rmssd = statistics.mean(self.phase_data_rmssd)
+            peak_rmssd = max(self.phase_data_rmssd)
+        else:
+            avg_hr, max_hr, avg_rmssd, peak_rmssd = 0, 0, 0, 0
+
+        self.results[self.current_phase.lower()] = {
+            "avg_hr": avg_hr, "max_hr": max_hr,
+            "avg_rmssd": avg_rmssd, "peak_rmssd": peak_rmssd
+        }
+
+        sequence = ["REST", "STRESS", "EXERTION", "RECOVERY"]
+        curr_idx = sequence.index(self.current_phase)
+        if curr_idx < len(sequence) - 1:
+            self.show_instruction(sequence[curr_idx + 1])
+        else:
+            self.save_profile()
+
+    def save_profile(self):
+        self.current_phase = "FINISHED"
+        self.dashboard_active = False 
+        self.clear_screen()
+
+        profile = UserProfile(self.user_name)
+        profile.calibrate(self.results['rest'], self.results['stress'], self.results['recovery'])
+        
+        age_max = 220 - self.user_age
+        measured_max = self.results['exertion']['max_hr']
+        profile.max_hr = max(age_max, measured_max)
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_stats = {
+            "date": timestamp,
+            "resting_hr": round(profile.resting_hr, 1),
+            "baseline_rmssd": round(profile.baseline_rmssd, 3),
+            "stress_hr_threshold": round(profile.stress_hr_threshold, 1),
+            "recovery_score": round(profile.recovery_score, 1),
+            "max_hr": int(profile.max_hr),
+            "raw_results": self.results
+        }
+
+        filename = f"{self.user_name.lower().replace(' ', '_')}_profile.json"
+        full_path = os.path.join(PROFILE_DIR, filename)
+
+        final_data = {
+            "name": self.user_name,
+            "dob": self.user_dob,
+            "age": self.user_age,
+            "current_stats": new_stats,
+            "history": []
+        }
+
+        if os.path.exists(full_path):
+            backup_name = f"{filename}.{int(time.time())}.bak"
+            if not os.path.exists(BACKUP_DIR): os.makedirs(BACKUP_DIR)
+            try: shutil.copy(full_path, os.path.join(BACKUP_DIR, backup_name))
+            except: pass
+
+            try:
+                with open(full_path, 'r') as f: old_data = json.load(f)
+                if "history" in old_data: final_data["history"] = old_data["history"]
+                if "current_stats" in old_data: final_data["history"].append(old_data["current_stats"])
+            except: pass
+
+        with open(full_path, 'w') as f:
+            json.dump(final_data, f, indent=4)
+
+        self.show_success_screen(profile, filename)
+
+    def show_success_screen(self, profile, filename):
+        frame = ttk.Frame(self)
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        ttk.Label(frame, text="Calibration Complete!", style="Header.TLabel", foreground="#50fa7b").pack(pady=10)
+        res_text = (
+            f"Profile Saved: {filename}\n"
+            f"Resting HR: {profile.resting_hr:.1f} bpm\n"
+            f"Baseline HRV: {profile.baseline_rmssd:.3f} ms\n"
+            f"Max HR: {int(profile.max_hr)} bpm"
+        )
+        ttk.Label(frame, text=res_text, font=("Courier", 12), background="black", padding=10).pack(fill=tk.BOTH, expand=True, pady=10)
+        ttk.Button(frame, text="Close", command=self.destroy).pack(pady=20)
+
+    def clear_screen(self):
+        for widget in self.winfo_children(): widget.destroy()
+
+    def destroy(self):
+        self.dashboard_active = False # Stop loops
+        if self.sensor:
+            try: self.sensor.stop()
+            except: pass
+        self.parent.finish_calibration_wizard() # Notify parent
+        super().destroy()
 
 if __name__ == "__main__":
     try:

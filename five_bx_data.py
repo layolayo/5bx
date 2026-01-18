@@ -1,6 +1,8 @@
 import sqlite3
 import os
 
+DB_NAME = "exercises.db3"
+
 # Time limits in seconds (2m, 1m, 1m, 1m, 6m)
 TIME_LIMITS = [120, 60, 60, 60, 360]
 
@@ -353,7 +355,6 @@ def get_level_display(level_int):
 
 
 # --- DATABASE CONNECTION ---
-DB_NAME = "exercises.db3"
 
 
 def get_exercise_detail(chart, idx, variant="Standard"):
@@ -622,3 +623,22 @@ CARDIO_CONFIG = {
 def get_cardio_config(chart):
     # Returns dict or default
     return CARDIO_CONFIG.get(str(chart), {"run": "Run", "walk": "Walk"})
+
+def get_time_target(chart, level, mode):
+    """
+    Returns time target in seconds for Chart/Level/Mode (Run/Walk).
+    """
+    if not os.path.exists(DB_NAME): return 600
+    
+    col = "ex5_run" if "Run" in mode else "ex5_walk"
+    conn = sqlite3.connect(DB_NAME)
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"SELECT {col} FROM ExerciseTimes WHERE chart=? AND level=?", (chart, level))
+        row = cursor.fetchone()
+    except:
+        row = None
+    conn.close()
+    
+    if row and row[0]: return row[0]
+    return 600 # Fallback
