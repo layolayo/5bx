@@ -2,91 +2,63 @@
 
 > **Five Basic Exercises. Eleven Minutes a Day. No Equipment Required.**
 
-The **5BX (Five Basic Exercises)** plan was developed by the Royal Canadian Air Force (RCAF) in the late 1950s. Designed by Dr. Bill Orban, it was created for men stationed in remote outposts with no gym equipment and limited space. Its genius lies in its efficiency: it provides a complete full-body workout in strictly **11 minutes**.
+Welcome to **5BX**, the fitness plan that was decades ahead of its time. 
+
+Developed by Dr. Bill Orban for the Royal Canadian Air Force in the late 1950s, 5BX was the original "HIIT" workout before the term even existed. It was built for pilots stationed in remote frozen outposts with no gyms, no gear, and strictly limited time. 
+
+The promise is simple: **11 minutes a day** to build a body that is ready for anything.
 
 ---
 
-## The Concept
+## 🚀 The Concept
 
-5BX is a **progressive system**. It is not a single workout, but a ladder of **6 Charts**, each containing **12 Levels**. 
+5BX isn't just a workout; it's a **ladder**. 
 
-*   **Total Levels**: 72
-*   **Time**: 11 Minutes (Constant)
-*   **Goal**: As you get fitter, you do *more* repetitions of *harder* exercises within the same 11-minute window.
+You don't just "do exercise." You climb. The system is built on **6 Charts**, comprised of **72 Levels** of increasing difficulty.
+*   **The Time**: 11 Minutes. Every single day.
+*   **The Mission**: As you get stronger, you don't spend *more* time. You do *more work* in the same time.
 
-### Why It Works
-1.  **Balanced Fitness**: It targets flexibility, core strength, upper body strength, and cardiovascular endurance.
-2.  **No Excuses**: It requires no gear—not even a mat—and takes less time than a coffee break.
-3.  **Age-Graded**: Your goal isn't necessarily to reach the end (Chart 6 Level 12); it's to reach the level appropriate for your age group and maintain it.
+### Why It's Legendary
+1.  **Zero Friction**: No membership. No clothes to buy. No equipment to set up. You can do it in your pajamas next to your bed.
+2.  **Scientifically Balanced**: Dr. Orban carefully sequenced 5 movements to target flexibility, core, back, upper body, and cardio in a precise flow.
+3.  **Your Pace**: It meets you exactly where you are. Whether you are a sofa-surfer or a marathon runner, there is a level that will challenge you.
 
 ---
 
-## The 5 Exercises
+## ⚡ The 5 Exercises
 
-Every session consists of the same 5 movements, performed in order. While the specific technique evolves as you move up the Charts (e.g., knee push-ups become clapping push-ups), the core structure remains identical.
+11 minutes. 5 movements. Non-stop action.
 
 ### 1. Flexibility (2 Minutes)
-Stretches for the toes, floor, and spine.
+**Wake up the body.** Loosen the spine, stretch the hamstrings, and get the blood flowing.
 ![Exercise 1](images/c1_ex1.png)
 
-### 2. Core / Abs (1 Minute)
-Movements to engage the abdominals, such as sit-ups and leg raises.
+### 2. Core (1 Minute)
+**Forge the abs.** Sit-ups and leg raises to bulletproof your midsection.
 ![Exercise 2](images/c1_ex2.png)
 
 ### 3. Back Extension (1 Minute)
-Exercises to strengthen the lower back and improve posture.
+**Build the foundation.** Often neglected, a strong lower back is the key to posture and power.
 ![Exercise 3](images/c1_ex3.png)
 
 ### 4. Upper Body (1 Minute)
-Push-up variations to build chest and arm strength.
+**Push power.** From knees to claps, these push-up variations carve your chest and arms.
 ![Exercise 4](images/c1_ex4.png)
 
 ### 5. Cardio (6 Minutes)
-High-intensity movement to build heart and lung capacity.
-*   **Stationary Run**: Running in place (lifting knees, counting steps).
-*   **Outdoor Option**: Charts 1-4 allow for a Walk or Run substitute if you prefer.
+**The engine room.** This is where the magic happens. Stationary running to jack up your heart rate and melt calories.
+*   *Prefer the outdoors?* You can swap this for a timed Run or Walk on Charts 1-4.
 ![Exercise 5](images/c1_ex5.png)
 
 ---
 
-## How to Follow the Plan
+## 📈 Visual Guide: The Charts
 
-### 1. Find Your Starting Point
-Most beginners should start at **Chart 1, Level 1**. Even if you are fit, start low to perfect your form and build the habit.
+The program is built on **6 Charts**. Each chart represents a significant increase in difficulty. Below is **Chart 1**, the launching pad for your journey.
 
-### 2. The Daily Routine
-*   Perform the exercises in order (1 -> 5).
-*   Stick strictly to the time limits (2m, 1m, 1m, 1m, 6m).
-*   Count your repetitions.
-
-### 3. Progressing (Leveling Up)
-*   **Meet the Target**: If you complete the required reps for your level within the time limit, you "Pass".
-*   **Move Up**: Passing usually allows you to move to the next Level (e.g., C1 D- -> C1 D).
-*   **Hold Steady**: If you miss the target, stay at your current level. Do not move up until you can complete it properly.
-
-### 4. Progression & Regression
-*   **Leapfrog**: If you smash the targets, the app may graduate you multiple levels at once.
-*   **Demotion**: If you fail to meet targets for **3 consecutive sessions**, the system will lower your level to match your performance. This ensures you are always challenged but never overwhelmed.
-
-### 5. Maintenance
-Once you reach the level assigned to your age group (e.g., Chart 3 for a 35-year-old), you can switch to a "Maintenance Schedule" (3 days a week) instead of daily training. Of course, you are free to push further if you want to achieve elite fitness!
-
----
-
-## Visual Guide: The Charts
-
-The program is built on **6 Charts**. Each chart represents a significant increase in difficulty. Below is **Chart 1**, which covers the beginner stages.
-
-### How to Read the Chart
-*   **Columns**: The 5 Exercises (1-5).
-*   **Rows**: The 12 Levels of difficulty (D- to A+).
-*   **The Numbers**: The exact number of **Repetitions** you must complete.
-*   **Time Limits**:
-    *   **Ex 1**: 2 Minutes
-    *   **Ex 2, 3, 4**: 1 Minute each
-    *   **Ex 5**: 6 Minutes
-
-### Chart 1: Beginner
+### Chart 1: Beginner Targets
+*   **D- to A+**: The 12 steps you must conquer to clear this chart.
+*   **Ex 1**: 2 Mins | **Ex 2-4**: 1 Min | **Ex 5**: 6 Mins
 
 | Grade | Ex 1 (Toe Touch) | Ex 2 (Sit Up) | Ex 3 (Bk Ext) | Ex 4 (Push Up) | Ex 5 (Run) |
 | :--- | :---: | :---: | :---: | :---: | :---: |
@@ -103,5 +75,30 @@ The program is built on **6 Charts**. Each chart represents a significant increa
 | **D** | **3** | **4** | **5** | **3** | **145** |
 | **D-** | **2** | **3** | **4** | **2** | **100** |
 
-> **Goal**: Your aim is to move UP this table. Once you conquer Level 12 (A+), you graduate to **Chart 2, Level 1**.
+> **Your Goal**: Smash Level 12 (A+). Once you do, you graduate to **Chart 2**, where the real work begins.
 
+---
+
+## 🎮 How to Play
+
+### 1. The Daily Grind
+Perform the exercises in order. Count your reps. Don't stop.
+
+### 2. Level Up! ⬆️
+Did you hit the target numbers for your current level?
+*   **YES**: Congratulations! You advance to the next level tomorrow.
+*   **NO**: No sweat. Stay at this level and try again. Consistency is key.
+
+### 3. Setbacks & Comebacks 📉
+*   **Leapfrog**: Crush the targets? The app might skip you ahead 2 or 3 levels.
+*   **3-Strikes**: Miss the target 3 days in a row? The system will automatically lower the difficulty to keep you in the "training zone" rather than the "failure zone."
+
+### 4. Maintenance Mode 🧘
+Once you reach the fitness level appropriate for your age, you can switch to **3 days a week**. You have "arrived." (But between us? Go for Chart 6.)
+
+---
+<br>
+
+> *"The 5BX Plan is designed to bring you to a level of physical fitness that will enable you to meet the physical demands of your daily work and play."* 
+> 
+> — **RCAF Manual (1961)**
