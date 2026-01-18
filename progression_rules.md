@@ -14,14 +14,14 @@ The fundamental rule of 5BX is simple: **You must meet the target repetitions (o
 When you pass a level, the system calculates *how well* you passed to determine your new level.
 
 ### A. LEVEL UP (Standard Progression)
-**Condition**: You met the target target for your *current* level.
-**Result**: You move to the absolute **next level** (e.g., C1 A- -> C1 A).
-**Logic**: The system guarantees at least a 1-step advancement if the target is met.
+- **Condition**: You met the target target for your *current* level.
+- **Result**: You move to the absolute **next level** (e.g., C1 A- -> C1 A).
+- **Logic**: The system guarantees at least a 1-step advancement if the target is met.
 
 ### B. LEAPFROG (Accelerated Progression)
-**Condition**: Your performance was strong enough to pass a *higher* level than the one you just unlocked.
-**Result**: You skip levels (e.g., C1 A- -> C1 A+).
-**Logic**:
+- **Condition**: Your performance was strong enough to pass a *higher* level than the one you just unlocked.
+- **Result**: You skip levels (e.g., C1 A- -> C1 A+).
+- **Logic**:
 1.  The app checks the database for the **highest level** within your current chart where your performance met (or exceeded) the targets for **ALL** exercises.
 2.  If this "Max Performance Level" is higher than the standard "Next Level", you are awarded a "LEAPFROG" to that specific level.
 3.  *Note*: Internally, the app uses a "Rank ID" (Chart × 12 + Level) to compare levels, but your performance is judged strictly against the specific rep targets for each exercise.
