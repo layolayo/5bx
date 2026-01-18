@@ -52,19 +52,7 @@ This allows you to progress in Strength while holding steady in Cardio (or vice 
 
 ---
 
-## 4. Historical Data Note
-
-When viewing **History Logs**, you may notice a discrepancy between the **Verdict** and the **Level performed next time**.
-
--   **The Verdict**: Tells you what the app *recommends* (calculated based on that day's performance).
--   **The Next Record**: Shows what you *actually did* on the next session.
-
-**Why they might differ:**
--   **Old Data**: Migration scripts recalculate verdicts using modern rules, but they cannot change the past facts of which level you actually performed.
--   **User Choice**: You may have manually selected a different level than recommended.
--   **Legacy Rules**: Older versions of the app might have had different targets, so you didn't advance then, even though modern rules say you should have.
-
-## 5. Changing Charts
+## 4. Changing Charts
 
 The 5BX system is divided into **6 Charts**, each with **12 Levels**. Moving from one Chart to the next is a major milestone.
 
@@ -72,3 +60,18 @@ The 5BX system is divided into **6 Charts**, each with **12 Levels**. Moving fro
 -   **The Step Up**: Once you complete Level 12, your next promotion will be to **Level 1 (D-)** of the *next* Chart.
 -   **No Skipping**: You cannot "Leapfrog" across charts. Even if your performance is excellent, you must complete the final level of Chart X before starting Chart X+1.
 -   **New Challenges**: Moving to a new chart often introduces new exercise variations or significantly higher repetition targets (especially for Chart 2 -> 3). Be prepared for the difficulty spike!
+
+## 5. Demotion & Regression
+
+While 5BX is designed for progress, it also handles setbacks to ensure you are training at an effective level.
+
+### A. The "3 Strikes" Rule
+-   **Condition**: If you receive a **MAINTAIN** (or FAIL) verdict for **3 consecutive sessions** for a specific component (Strength or Cardio).
+-   **Streak**: The counter persists until you receive an **UP** verdict. If you are demoted and fail again immediately, the streak continues (4th failure), triggering another demotion.
+-   **Result**: You are automatically demoted to the level that matches your actual performance for that session.
+
+### B. Chart Drops
+-   **Condition**: If your performance is so low that you fail to meet the targets for **Level 1 (D-)** of your current chart.
+-   **Result**: You are dropped to the **Previous Chart**.
+-   **Placement**: To prevent discouragement, you are placed at **Level 12 (A+)** of the lower chart, giving you a strong starting point to regain your momentum.
+-   *Note*: This only applies if you are on Chart 2 or higher.
