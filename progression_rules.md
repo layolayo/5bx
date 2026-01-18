@@ -22,9 +22,9 @@ When you pass a level, the system calculates *how well* you passed to determine 
 **Condition**: Your performance was strong enough to pass a *higher* level than the one you just unlocked.
 **Result**: You skip levels (e.g., C1 A- -> C1 A+).
 **Logic**:
-1.  The app calculates a `Total Score` based on your reps.
-2.  It compares your score against the requirements for higher levels.
-3.  If your score exceeds the requirements for `Next Level + 1`, you are awarded a "LEAPFROG" or "PROMOTION".
+1.  The app checks the database for the **highest level** within your current chart where your performance met (or exceeded) the targets for **ALL** exercises.
+2.  If this "Max Performance Level" is higher than the standard "Next Level", you are awarded a "LEAPFROG" to that specific level.
+3.  *Note*: Internally, the app uses a "Rank ID" (Chart × 12 + Level) to compare levels, but your performance is judged strictly against the specific rep targets for each exercise.
 
 ---
 
