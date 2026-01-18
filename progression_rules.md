@@ -1,77 +1,82 @@
 # 5BX Progression Rules
 
-This document outlines the algorithms used to determine level progression in the Bio-Adaptive 5BX App.
+> **Your roadmap to the next level.**
 
-## 1. The Core Rule: "Meet the Target"
-
-The fundamental rule of 5BX is simple: **You must meet the target repetitions (or time) for your current level to advance.**
-
--   **Pass**: If you perform >= Target Reps (or <= Target Time), you qualify for promotion.
--   **Miss**: If you perform < Target Reps, you **MAINTAIN** your current level. You do not drop down unless you choose to, but you cannot advance.
-
-## 2. Progression Types
-
-When you pass a level, the system calculates *how well* you passed to determine your new level.
-
-### A. LEVEL UP (Standard Progression)
-- **Condition**: You met the target target for your *current* level.
-- **Result**: You move to the absolute **next level** (e.g., C1 A- -> C1 A).
-- **Logic**: The system guarantees at least a 1-step advancement if the target is met.
-
-### B. LEAPFROG (Accelerated Progression)
-- **Condition**: Your performance was strong enough to pass a *higher* level than the one you just unlocked.
-- **Result**: You skip levels (e.g., C1 A- -> C1 A+).
-- **Logic**:
-1.  The app checks the database for the **highest level** within your current chart where your performance met (or exceeded) the targets for **ALL** exercises.
-2.  If this "Max Performance Level" is higher than the standard "Next Level", you are awarded a "LEAPFROG" to that specific level.
-3.  *Note*: Internally, the app uses a "Rank ID" (Chart × 12 + Level) to compare levels, but your performance is judged strictly against the specific rep targets for each exercise.
+This document outlines the "hidden logic" of the 5BX App. While the interface is simple, the engine under the hood is constantly evaluating your performance to ensure you are always in the optimal training zone.
 
 ---
 
-## 3. Split Levels (Strength vs. Cardio)
+## 🎯 1. The Golden Rule
 
-The 5BX App operates in "Split Mode," assessing Strength (Exercises 1-4) and Cardio (Exercise 5) independently.
+The fundamental law of 5BX is simple:
+> **Meet the Target = Level Up**
 
-### Strength Verdict
--   **Exercises**: 1, 2, 3, 4.
--   **Rule**: You must meet the target reps for **ALL 4** exercises to advance.
--   **Failure**: If you miss the target for even *one* exercise (e.g., Ex 3), the verdict is **MAINTAIN**.
--   **Success**: If all 4 are passed, you advance based on your total score.
-
-### Cardio Verdict
--   **Exercise**: 5 (Stationary, Run, or Walk).
--   **Stationary Rule**: You must meet the target **Reps** (e.g., 400).
--   **Run/Walk Rule**: You must meet or beat the target **Time** (e.g., run 1 mile in 8:00 or less).
--   **Failure**: If reps are too low or time is too slow, the verdict is **MAINTAIN**.
-
-### Combined Result
-Your session ending screen will show a split verdict:
-> **Strength (LEAPFROG to C2 B+) / Cardio (MAINTAIN)**
-
-This allows you to progress in Strength while holding steady in Cardio (or vice versa) until you are ready to move up.
+*   **Pass**: If you hit the target reps (or beat the target time), you qualify for promotion.
+*   **Miss**: If you miss by even 1 rep, you **MAINTAIN**. You do not drop down instantly, but you cannot advance.
 
 ---
 
-## 4. Changing Charts
+## 🚀 2. Going Up: Progression
 
-The 5BX system is divided into **6 Charts**, each with **12 Levels**. Moving from one Chart to the next is a major milestone.
+When you pass a level, the system calculates *how well* you passed to decide your fate.
 
--   **Requirement**: You must reach and pass **Level 12 (A+)** of your current Chart.
--   **The Step Up**: Once you complete Level 12, your next promotion will be to **Level 1 (D-)** of the *next* Chart.
--   **No Skipping**: You cannot "Leapfrog" across charts. Even if your performance is excellent, you must complete the final level of Chart X before starting Chart X+1.
--   **New Challenges**: Moving to a new chart often introduces new exercise variations or significantly higher repetition targets (especially for Chart 2 -> 3). Be prepared for the difficulty spike!
+### A. LEVEL UP (Standard)
+*   **The Vibe**: "Steady progress."
+*   **Condition**: You met the targets for your current level.
+*   **Result**: You move to the absolute **next level** (e.g., C1 A- ➡ C1 A).
 
-## 5. Demotion & Regression
+### B. LEAPFROG (Accelerated)
+*   **The Vibe**: "You're crushing it."
+*   **Condition**: Your performance was essentially "too good" for your current level.
+*   **Result**: You skip levels entirely (e.g., C1 A- ➡ C1 A+).
+*   **Logic**: The app internally checks every level in your chart. If your reps were high enough to pass a higher level, you are instantly catapulted there.
 
-While 5BX is designed for progress, it also handles setbacks to ensure you are training at an effective level.
+---
+
+## ⚔️ 3. Split Mode: Strength vs. Cardio
+
+Your body is not a monolith. You might have legs of steel but the lungs of a smoker (or vice versa).
+The app tracks **Strength** (Ex 1-4) and **Cardio** (Ex 5) independently.
+
+### The Strength Verdict
+*   **Exercises**: 1, 2, 3, 4.
+*   **Rule**: You must pass **ALL 4** exercises to upgrade.
+*   **Failure**: Miss one? You fail them all. (Verdict: **MAINTAIN**)
+
+### The Cardio Verdict
+*   **Exercise**: 5 (Stationary, Run, or Walk).
+*   **Stationary**: Hit the Reps.
+*   **Run/Walk**: Beat the Clock.
+*   **Failure**: Too slow or too few steps? Verdict: **MAINTAIN**.
+
+### The Result
+You can level up in Strength while staying put in Cardio.
+> *Example Verdict: **Strength (LEAPFROG 🚀) / Cardio (MAINTAIN 🛑)***
+
+---
+
+## 🏔️ 4. The Big Leagues: Changing Charts
+
+Moving from one Chart to the next (e.g., Chart 1 to Chart 2) is a major milestone.
+
+*   **The Gatekeeper**: You must reach and pass **Level 12 (A+)** of your current Chart.
+*   **The Step Up**: Your next promotion sends you to **Level 1 (D-)** of the next Chart.
+*   **No Skipping**: You cannot "Leapfrog" across charts. You must beat the final boss (Level 12) to unlock the next world.
+
+---
+
+## 📉 5. Setbacks & Comebacks
+
+Sometimes, life happens. Or maybe you just got promoted too fast. The system handles failure gracefully to keep you training effectively.
 
 ### A. The "3 Strikes" Rule
--   **Condition**: If you receive a **MAINTAIN** (or FAIL) verdict for **3 consecutive sessions** for a specific component (Strength or Cardio).
--   **Streak**: The counter persists until you receive an **UP** verdict. If you are demoted and fail again immediately, the streak continues (4th failure), triggering another demotion.
--   **Result**: You are automatically demoted to the level that matches your actual performance for that session.
+*   **Condition**: Valid if you receive a **MAINTAIN** (or FAIL) verdict for **3 consecutive sessions**.
+*   **The Slide**: You are automatically demoted to the level that matches your *actual* performance.
+*   **The Streak**: The failure counter persists until you win. If you get demoted and fail again immediately, that counts as Strike 4 (immediate demotion again).
 
-### B. Chart Drops
--   **Condition**: If your performance is so low that you fail to meet the targets for **Level 1 (D-)** of your current chart.
--   **Result**: You are dropped to the **Previous Chart**.
--   **Placement**: To prevent discouragement, you are placed at **Level 12 (A+)** of the lower chart, giving you a strong starting point to regain your momentum.
--   *Note*: This only applies if you are on Chart 2 or higher.
+### B. Chart Drops (The Safety Net)
+*   **Condition**: You are at the bottom of a Chart (Level 1 / D-) and you *still* can't hit the target.
+*   **Result**: You are dropped to the **Previous Chart**.
+*   **Soft Landing**: To prevent discouragement, you are placed at the **Top (Level 12 / A+)** of the lower chart. You strictly go down, but you land on your feet.
+
+> *"Do not be discouraged by a setback. It is merely a sign that you have found your true training limit, and true growth begins there."*
