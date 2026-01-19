@@ -234,6 +234,16 @@ class Bio5BXApp(tk.Tk):
             return dict(row) if row else None
         except: return None
 
+    def db_get_all_users(self):
+        try:
+            conn = sqlite3.connect(USER_DB_FILE)
+            c = conn.cursor()
+            c.execute("SELECT name FROM users ORDER BY name ASC")
+            rows = c.fetchall()
+            conn.close()
+            return [r[0] for r in rows]
+        except: return []
+
     def db_create_user(self, name, age, linked_file, cur_c, cur_l, goal_c, goal_l, dob=None):
         try:
             conn = sqlite3.connect(USER_DB_FILE)
@@ -389,16 +399,38 @@ class Bio5BXApp(tk.Tk):
         tk.Button(btn_frame, text="📘 Manual", bg="#2980b9", fg="white", font=("Arial", 10, "bold"), 
                   command=self.show_manual_popup).grid(row=0, column=4, padx=5, sticky="ew")
 
-        self.lst_profiles = tk.Listbox(frame, height=8, font=("Arial", 14))
-        self.lst_profiles.pack(fill=tk.BOTH, expand=True, pady=10)
-        for p in profiles:
-            name = os.path.basename(p).replace("_profile.json", "").replace("_", " ").title()
+        # LISTBOX AREA (Container for List + Scrollbar)
+        list_frame = tk.Frame(frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=10)
+
+        scrollbar = ttk.Scrollbar(list_frame, orient="vertical")
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        self.lst_profiles = tk.Listbox(list_frame, height=8, font=("Arial", 14), yscrollcommand=scrollbar.set)
+        self.lst_profiles.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=self.lst_profiles.yview)
+
+        # Populate from DB
+        user_list = self.db_get_all_users()
+        for name in user_list:
             self.lst_profiles.insert(tk.END, name)
 
+        # SELECTED INFO PANEL
+        info_frame = tk.Frame(frame, bg="#34495e", pady=10)
+        info_frame.pack(fill=tk.X, pady=5)
         
+        self.lbl_sel_name = tk.Label(info_frame, text="Select a User...", font=("Arial", 12, "bold"), fg="#bdc3c7", bg="#34495e")
+        self.lbl_sel_name.pack()
+        
+        self.lbl_sel_dob = tk.Label(info_frame, text="", font=("Arial", 10), fg="#95a5a6", bg="#34495e")
+        self.lbl_sel_dob.pack()
+        
+        self.lbl_sel_cal_status = tk.Label(info_frame, text="", font=("Arial", 10), fg="#95a5a6", bg="#34495e")
+        self.lbl_sel_cal_status.pack()
+
         # Quit Button
         tk.Button(frame, text="❌ Quit Application", command=self.quit_app, bg="#7f8c8d", fg="white", font=("Arial", 10)).pack(side=tk.BOTTOM, fill=tk.X, pady=5)
-        self.lst_profiles.bind('<<ListboxSelect>>', self.check_profile_date)
+        self.lst_profiles.bind('<<ListboxSelect>>', self.on_profile_select)
 
         # Start Live Update Loop
         self.update_status_loop()
@@ -454,12 +486,15 @@ class Bio5BXApp(tk.Tk):
             # Calculate Age for Legacy Column
             age = self.calculate_age(dob_str)
             
-            # Create DB entry
-            self.db_create_user(name, int(age), "none", "1", "1", "6", "12", dob=dob_str)
+            # Prepare Profile Filename
+            clean_name = name.lower().replace(" ", "_")
+            linked_filename = f"{clean_name}_profile.json"
+            
+            # Create DB entry (Pass linked_filename)
+            self.db_create_user(name, int(age), linked_filename, "1", "1", "6", "12", dob=dob_str)
             
             # Create Profile JSON
-            clean_name = name.lower().replace(" ", "_")
-            prof_path = os.path.join(PROFILE_DIR, f"{clean_name}_profile.json")
+            prof_path = os.path.join(PROFILE_DIR, linked_filename)
             if not os.path.exists(prof_path):
                  with open(prof_path, 'w') as f:
                      json.dump({"name": name, "dob": dob_str, "age": int(age)}, f)
@@ -495,9 +530,12 @@ class Bio5BXApp(tk.Tk):
                 selection = self.lst_profiles.curselection()
                 if selection:
                     name = self.lst_profiles.get(selection[0])
-                    # Load JSON to get DOB for this user
-                    clean_name = name.lower().replace(" ", "_").strip()
-                    prof_path = os.path.join(PROFILE_DIR, f"{clean_name}_profile.json")
+                    
+                    # Resolve File via DB
+                    db_u = self.db_get_user(name)
+                    filename = db_u['linked_file'] if (db_u and db_u.get('linked_file') and db_u['linked_file'] != 'none') else f"{name.lower().replace(' ', '_')}_profile.json"
+
+                    prof_path = os.path.join(PROFILE_DIR, filename)
                     if os.path.exists(prof_path):
                         with open(prof_path, 'r') as f:
                             data = json.load(f)
@@ -535,20 +573,86 @@ class Bio5BXApp(tk.Tk):
         if self.linker_active:
             self.show_profile_linker()
 
-    def check_profile_date(self, event):
+    def on_profile_select(self, event):
         selection = self.lst_profiles.curselection()
-        if not selection: return
+        if not selection:
+            self.lbl_sel_name.config(text="No User Selected", foreground="#f1c40f")
+            self.lbl_sel_dob.config(text="")
+            self.lbl_sel_cal_status.config(text="")
+            self.btn_load.config(text="📂 Load User", bg="#2ecc71")
+            return
+        
         selected_text = self.lst_profiles.get(selection[0])
-        clean_filename = selected_text.lower().replace(" ", "_") + "_profile.json"
+        
+        # Resolve File via DB
+        db_u = self.db_get_user(selected_text)
+        clean_filename = db_u['linked_file'] if (db_u and db_u.get('linked_file') and db_u['linked_file'] != 'none') else (selected_text.lower().replace(" ", "_") + "_profile.json")
+
         full_path = os.path.join(PROFILE_DIR, clean_filename)
-        try:
-            mod_time = os.path.getmtime(full_path)
-            file_date = datetime.datetime.fromtimestamp(mod_time)
-            if (datetime.datetime.now() - file_date).days > CALIBRATION_EXPIRY_DAYS:
-                self.btn_load.config(text=f"📂 LOAD (Recalibration Due)", bg="#f1c40f")
-            else:
+        
+        self.profile_data = {} # Clear previous
+        self.user_data = {} # Clear previous
+        
+        if os.path.exists(full_path):
+            try:
+                with open(full_path, 'r') as f:
+                    self.profile_data = json.load(f)
+                    
+                # Additional DB load for history/stats if needed
+                self.user_data = self.db_get_user(selected_text) # Sync DB data to memory
+                
+                # Show details in right panel
+                self.lbl_sel_name.config(text=self.profile_data.get("name", "Unknown"), foreground="#f1c40f")
+                dob_str = self.profile_data.get("dob", "N/A")
+                self.lbl_sel_dob.config(text=f"DOB: {dob_str}")
+
+                # Check calibration date
+                cal_date_str = self.profile_data.get("calibration_date")
+                
+                # Check Legacy Location
+                if not cal_date_str:
+                     stats = self.profile_data.get("current_stats", {})
+                     cal_date_str = stats.get("date")
+
+                if not cal_date_str:
+                     self.btn_load.config(text="📂 Load User (Uncalibrated)", bg="#95a5a6")
+                     self.lbl_sel_cal_status.config(text="⚠️ Not Calibrated", foreground="#e67e22")
+                else:
+                    try:
+                        # Try parsing multiple formats
+                        cal_date = None
+                        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S"):
+                            try:
+                                cal_date = datetime.datetime.strptime(cal_date_str, fmt)
+                                break
+                            except ValueError: continue
+                        
+                        if cal_date:
+                            days_since = (datetime.datetime.now() - cal_date).days
+                            short_date = cal_date.strftime('%Y-%m-%d')
+                            
+                            if days_since > CALIBRATION_EXPIRY_DAYS:
+                                self.btn_load.config(text=f"📂 LOAD (Recalibration Due)", bg="#f1c40f")
+                                self.lbl_sel_cal_status.config(text=f"Calibration Expired ({days_since} days ago)", foreground="#e74c3c")
+                            else:
+                                self.btn_load.config(text="📂 Load User", bg="#2ecc71")
+                                self.lbl_sel_cal_status.config(text=f"Last Calibrated: {short_date}", foreground="#2ecc71")
+                        else:
+                             self.lbl_sel_cal_status.config(text="Invalid Date format", foreground="red")
+                    except Exception as ex:
+                        print(f"Date check error: {ex}")
+                        self.lbl_sel_cal_status.config(text="Error Checking Date", foreground="red")
+            except Exception as e:
+                print(f"Error loading profile details: {e}")
+                self.lbl_sel_name.config(text="Error Loading Profile", foreground="red")
+                self.lbl_sel_dob.config(text="")
+                self.lbl_sel_cal_status.config(text="")
                 self.btn_load.config(text="📂 Load User", bg="#2ecc71")
-        except: pass
+        else:
+            self.lbl_sel_name.config(text="Profile File Missing", foreground="red")
+            self.lbl_sel_dob.config(text="")
+            self.lbl_sel_cal_status.config(text="")
+            self.btn_load.config(text="📂 Load User", bg="#2ecc71")
 
     def link_and_load(self):
         self.linker_active = False # Stop linker loop
@@ -558,12 +662,18 @@ class Bio5BXApp(tk.Tk):
             return
 
         selected_text = self.lst_profiles.get(selection[0])
-        clean_filename = selected_text.lower().replace(" ", "_") + "_profile.json"
+        
+        # Resolve File via DB
+        db_u = self.db_get_user(selected_text)
+        clean_filename = db_u['linked_file'] if (db_u and db_u.get('linked_file') and db_u['linked_file'] != 'none') else f"{selected_text.lower().replace(' ', '_')}_profile.json"
         self.full_profile_path = os.path.join(PROFILE_DIR, clean_filename)
 
         try:
             with open(self.full_profile_path, 'r') as f: self.profile_data = json.load(f)
-        except Exception as e: return
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not load profile data for {selected_text}: {e}")
+            self.linker_active = True # Re-enable linker loop
+            return
 
         raw_name = self.profile_data.get("name", selected_text)
         user_name = raw_name.title()
@@ -1408,46 +1518,54 @@ class Bio5BXApp(tk.Tk):
         conn.close()
 
         if messagebox.askyesno("Confirm", "Delete this record?"):
+            # V13 FIX: Capture state BEFORE delete
+            del_c, del_l = "1", "1"
+            is_latest = (db_id == latest_id)
+            
+            if is_latest:
+                 conn = sqlite3.connect(USER_DB_FILE)
+                 c = conn.cursor()
+                 c.execute("SELECT chart, level FROM history WHERE id=?", (db_id,))
+                 row_del = c.fetchone()
+                 conn.close()
+                 if row_del:
+                     del_c = str(row_del[0])
+                     del_l = str(row_del[1])
+
             self.db_delete_history(db_id)
             
-            # If we deleted the LATEST record, we must revert the user's level
-            if db_id == latest_id:
-                # Find the NEW latest
-                conn = sqlite3.connect(USER_DB_FILE)
-                c = conn.cursor()
-                c.execute("SELECT chart, level FROM history WHERE user_id=? ORDER BY id DESC LIMIT 1", (self.user_id,))
-                row = c.fetchone()
-                conn.close()
-                
-                if row:
-                    # Revert to this
-                    prev_c_str = str(row[0])
-                    prev_l_str = str(row[1])
-                    
-                    # Handle Split Format: "1/1", "2/1"
-                    s_c, c_c = "1", "1"
-                    s_l, c_l = "1", "1"
-                    
-                    if "/" in prev_c_str:
-                         parts = prev_c_str.split("/")
-                         if len(parts) >= 2: s_c, c_c = parts[0], parts[1]
-                    else: s_c, c_c = prev_c_str, prev_c_str
-                    
-                    if "/" in prev_l_str:
-                         parts = prev_l_str.split("/")
-                         if len(parts) >= 2: s_l, c_l = parts[0], parts[1]
-                    else: s_l, c_l = prev_l_str, prev_l_str
-                    
-                    self.db_update_split_level(self.user_id, s_c, s_l, c_c, c_l)
-                    
-                    # Format for Message
-                    s_disp_l = bx.get_level_display(s_l)
-                    c_disp_l = bx.get_level_display(c_l)
-                    messagebox.showinfo("Synced", f"Because you deleted your most recent workout, your current level has been reverted to the previous record:\n\nStrength: {s_c} {s_disp_l}\nCardio: {c_c} {c_disp_l}")
-                else:
-                    # No history left
-                    self.db_update_split_level(self.user_id, "1", "1", "1", "1")
-                    messagebox.showinfo("Reset", "All history deleted. Level reset to Start.")
+            # If we deleted the LATEST record, we revert to the state stored IN that record
+            # (which represents the start point of that session)
+            if is_latest:
+                 prev_c_str = del_c
+                 prev_l_str = del_l
+                 
+                 # Handle Split Format: "1/1", "2/1"
+                 s_c, c_c = "1", "1"
+                 s_l, c_l = "1", "1"
+                 
+                 if " | " in prev_c_str:
+                      parts = prev_c_str.split(" | ")
+                      if len(parts) >= 2: s_c, c_c = parts[0], parts[1]
+                 elif "/" in prev_c_str:
+                      parts = prev_c_str.split("/")
+                      if len(parts) >= 2: s_c, c_c = parts[0], parts[1]
+                 else: s_c, c_c = prev_c_str, prev_c_str
+                 
+                 if " | " in prev_l_str:
+                      parts = prev_l_str.split(" | ")
+                      if len(parts) >= 2: s_l, c_l = parts[0], parts[1]
+                 elif "/" in prev_l_str:
+                      parts = prev_l_str.split("/")
+                      if len(parts) >= 2: s_l, c_l = parts[0], parts[1]
+                 else: s_l, c_l = prev_l_str, prev_l_str
+                 
+                 self.db_update_split_level(self.user_id, s_c, s_l, c_c, c_l)
+                 
+                 # Format for Message
+                 s_disp_l = bx.get_level_display(s_l)
+                 c_disp_l = bx.get_level_display(c_l)
+                 messagebox.showinfo("Synced", f"Most recent workout deleted. Level reverted to start of that session:\n\nStrength: {s_c} {s_disp_l}\nCardio: {c_c} {c_disp_l}")
             
             self.show_history_screen()
 
@@ -1569,7 +1687,7 @@ class Bio5BXApp(tk.Tk):
                 orig_w, orig_h = load.size
                 target_w = 400
                 target_h = int(target_w * (orig_h / orig_w))
-                if target_h > 300: target_h = 300; target_w = int(target_h * (orig_h / orig_h))
+                if target_h > 300: target_h = 300; target_w = int(target_h * (orig_h / orig_w))
                 load = load.resize((target_w, target_h), Image.Resampling.LANCZOS)
                 render = ImageTk.PhotoImage(load)
                 img_lbl = tk.Label(frame, image=render, bg="#2c3e50")
@@ -1692,7 +1810,12 @@ class Bio5BXApp(tk.Tk):
         self.timer_running = False
 
     def _show_cardio_selection(self, parent, chart):
-        ttk.Label(parent, text="Select Exercise 5 Variant", font=("Arial", 20, "bold")).pack(pady=20)
+        # Top Bar
+        top_bar = ttk.Frame(parent)
+        top_bar.pack(fill=tk.X, pady=5)
+        tk.Button(top_bar, text="⬅ Quit Workout", command=self.show_dashboard, bg="#e74c3c", fg="white").pack(side=tk.LEFT)
+
+        ttk.Label(parent, text="Select Exercise 5 Variant", font=("Arial", 20, "bold")).pack(pady=10)
         
         # Get Config
         config = bx.get_cardio_config(chart)
@@ -1733,8 +1856,6 @@ class Bio5BXApp(tk.Tk):
                 
             b3 = tk.Button(parent, text=f"{lbl_walk}\nTarget: {m}:{s:02d}", font=("Arial", 14), bg="#9b59b6", fg="white", height=3, command=sel_walk)
             b3.pack(fill=tk.X, pady=10, padx=20)
-             
-        tk.Button(parent, text="⬅ Quit Workout", command=self.show_dashboard, bg="#95a5a6", fg="white").pack(side=tk.BOTTOM, pady=20)
 
 
     def start_timer_action(self):
@@ -1952,9 +2073,13 @@ class Bio5BXApp(tk.Tk):
             for r in rows:
                 v_str = r['verdict']
                 # Parse Verdict Part
-                # Format: "Strength (MAINTAIN) / Cardio (UP)" or "Strength (DEMOTION...)"
+                # Format: "Strength (MAINTAIN) / Cardio (UP)" or "Strength (...) | Cardio (...)"
                 part = v_str
-                if "/" in v_str:
+                if " | " in v_str:
+                     parts = v_str.split(" | ")
+                     if len(parts) >= 2:
+                         part = parts[0] if component == "Strength" else parts[1]
+                elif "/" in v_str: # Legacy support
                     parts = v_str.split("/")
                     if len(parts) >= 2:
                         part = parts[0] if component == "Strength" else parts[1]
@@ -1968,7 +2093,13 @@ class Bio5BXApp(tk.Tk):
                      raw_c, raw_l = str(r['chart']), str(r['level'])
                      chart, level = raw_c, raw_l
                      
-                     if "/" in raw_c:
+                     if " | " in raw_c:
+                         c_parts = raw_c.split(" | ")
+                         l_parts = raw_l.split(" | ")
+                         if len(c_parts) >= 2:
+                             chart = c_parts[0] if component == "Strength" else c_parts[1]
+                             level = l_parts[0] if component == "Strength" else l_parts[1]
+                     elif "/" in raw_c:
                          c_parts = raw_c.split("/")
                          l_parts = raw_l.split("/")
                          if len(c_parts) >= 2:
@@ -1997,6 +2128,25 @@ class Bio5BXApp(tk.Tk):
         physical_pass = (missed == 0)
 
         report_text = ["--- SESSION BREAKDOWN ---"]
+        
+        # REPS SUMMARY
+        exercises = ["Toe Touch", "Sit-up", "Back Extension", "Push-up", "Cardio"]
+        report_text.append("PERFORMANCE:")
+        for i in range(5):
+            name = exercises[i]
+            done = self.reps_achieved[i]
+            target = self.target_reps_list[i]
+            
+            # Format for Cardio (Time vs Reps)
+            if i == 4 and self.current_cardio_mode in ["Run", "Walk"]:
+                 # Time
+                 done_str = f"{int(done//60)}:{int(done%60):02d}"
+                 target_str = f"{int(target//60)}:{int(target%60):02d}"
+                 report_text.append(f"{name}: {done_str} / {target_str}")
+            else:
+                 report_text.append(f"{name}: {done} / {target}")
+        report_text.append("") # Spacer
+        
         warnings = 0
         session_peak_hr = 0
         all_hr, all_rmssd = [], []
@@ -2004,7 +2154,7 @@ class Bio5BXApp(tk.Tk):
         for i, metric in enumerate(self.session_metrics):
             name, hrs, hrvs = metric['name'], metric['hr'], metric['rmssd']
             if not hrs:
-                report_text.append(f"{name}: No Data"); continue
+                report_text.append(f"{name}: (No HR Data)"); continue
 
             avg_hr, max_hr = sum(hrs)/len(hrs), max(hrs)
             all_hr.extend(hrs)
@@ -2041,6 +2191,9 @@ class Bio5BXApp(tk.Tk):
         c_chart = self.user_data.get("cardio_chart") or self.user_data.get("current_chart") or "1"
         c_level = self.user_data.get("cardio_level") or self.user_data.get("current_level") or "1"
         
+        
+        report_text.append("") # Spacer before Verdict
+        
         # 2. Evaluate STRENGTH (Ex 1-4)
         s_perf_c, s_perf_l = bx.calculate_strength_placement(self.reps_achieved, s_chart)
         s_status = "MAINTAIN"
@@ -2068,9 +2221,13 @@ class Bio5BXApp(tk.Tk):
                 s_new_c, s_new_l = s_perf_c, s_perf_l
                 
                 # Check for Leap
+                s_disp = bx.get_level_display(s_new_l)
+                dest = f"C{s_new_c} {s_disp}"
                 steps = s_score_perf - s_score_curr
                 if steps > 1:
-                    report_text.append(f"Strength: 🚀 PROMOTION! (Jumped {steps} Levels!)")
+                    report_text.append(f"Strength: 🚀 PROMOTION! (Jumped {steps} Levels to {dest})")
+                else:
+                    report_text.append(f"Strength: ✅ LEVEL UP! (Now at {dest})")
 
         else:
             s_status = "MAINTAIN"
@@ -2080,10 +2237,13 @@ class Bio5BXApp(tk.Tk):
             streak = 1 + self._get_consecutive_fails("Strength")
             if streak >= 3:
                 s_status = "DOWN"
-                s_perf_c, s_perf_l = bx.calculate_strength_placement(self.reps_achieved, s_chart)
-                
-                # Check Chart Drop (If failed L1)
-                if s_perf_l == "1":
+                # Logic: Drop to performance level.
+                # Constraint: Don't drop CHART unless we were already at the bottom (Level 1 / D-)
+                if s_level != "1" and int(s_perf_c) < int(s_chart):
+                    s_perf_c = s_chart
+                    s_perf_l = "1"
+                elif s_level == "1" and s_perf_l == "1":
+                     # Already at bottom, and placement is keeping us at bottom (or lower)
                      l1_targets = bx.get_targets(s_chart, "1")
                      failed_l1 = any(self.reps_achieved[i] < l1_targets[i] for i in range(4))
                      if failed_l1 and int(s_chart) > 1:
@@ -2092,9 +2252,9 @@ class Bio5BXApp(tk.Tk):
 
                 s_new_c, s_new_l = s_perf_c, s_perf_l
                 s_disp = bx.get_level_display(s_new_l)
-                report_text.append(f"Strength: 📉 DEMOTIION: {streak} Consecutive Failures. Dropped to C{s_new_c} {s_disp}")
+                report_text.append(f"💪 Strength: 📉 DEMOTION: {streak} Consecutive Failures. Dropped to C{s_new_c} {s_disp}")
             else:
-                report_text.append("Strength: Missed Target")
+                report_text.append(f"💪 Strength: Missed Target (Streak {streak}/3)")
 
         # 3. Evaluate CARDIO (Ex 5)
         c_perf_c, c_perf_l = bx.calculate_cardio_placement(self.reps_achieved, c_chart)
@@ -2110,7 +2270,7 @@ class Bio5BXApp(tk.Tk):
             # Report
             mins = user_time // 60
             secs = user_time % 60
-            report_text.append(f"🏃 {self.current_cardio_mode}: {mins}:{secs:02d} (Target {target_time // 60}:{target_time % 60:02d})")
+            report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): {mins}:{secs:02d} (Target {target_time // 60}:{target_time % 60:02d})")
             
             if user_time <= target_time:
                 # PASSED TARGET (Minimum requirement met for current level)
@@ -2140,9 +2300,13 @@ class Bio5BXApp(tk.Tk):
                      c_new_c, c_new_l = c_perf_c, c_perf_l
                      
                      # Check for Leap
+                     c_disp = bx.get_level_display(c_new_l)
+                     dest = f"C{c_new_c} {c_disp}"
                      steps = score_perf - score_curr
                      if steps > 1:
-                         report_text.append(f"   -> 🚀 PROMOTION! (Jumped {steps} Levels!)")
+                         report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): 🚀 PROMOTION! (Jumped {steps} Levels to {dest})")
+                     else:
+                         report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): ✅ LEVEL UP! (Now at {dest})")
             else:
                 c_missed = 1
                 # Check Demotion (Time)
@@ -2151,17 +2315,30 @@ class Bio5BXApp(tk.Tk):
                     c_status = "DOWN"
                     c_perf_c, c_perf_l = bx.calculate_cardio_time_placement(user_time, self.current_cardio_mode, c_chart)
                     
-                    if c_perf_l == "1":
+                    # Logic: Drop to performance level.
+                    # Constraint: Don't drop CHART unless we were already at the bottom (Level 1 / D-)
+                    if c_level != "1" and int(c_perf_c) < int(c_chart):
+                        c_perf_c = c_chart
+                        c_perf_l = "1"
+                    elif c_level == "1":
+                        # We are at bottom. Did we fail Level 1 targets?
+                        # Note: calculate_placement might return lower chart, implying failure.
+                        # But we confirm explicitly against L1 Target to be safe.
                         l1_time = bx.get_time_target(c_chart, "1", self.current_cardio_mode)
                         if user_time > l1_time and int(c_chart) > 1:
                             c_perf_c = str(int(c_chart) - 1)
                             c_perf_l = "12"
+                        else:
+                            # We failed streaks but passed L1 time (maybe barely?)
+                            # Or we are at Chart 1.
+                            c_perf_c = c_chart
+                            c_perf_l = "1"
 
                     c_new_c, c_new_l = c_perf_c, c_perf_l
                     c_disp = bx.get_level_display(c_new_l)
-                    report_text.append(f"   -> 📉 DEMOTIION: {streak} Consecutive Failures. Dropped to C{c_new_c} {c_disp}")
+                    report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): 📉 DEMOTIION: {streak} Consecutive Failures. Dropped to C{c_new_c} {c_disp}")
                 else:
-                    report_text.append("   -> Missed Target")
+                    report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): Missed Target (Streak {streak}/3)")
         else:
             # Reps Based (Original)
             if self.reps_achieved[4] < self.target_reps_list[4]:
@@ -2184,42 +2361,60 @@ class Bio5BXApp(tk.Tk):
                     c_new_c, c_new_l = c_perf_c, c_perf_l
                      
                     # Check for Leap
+                    c_disp = bx.get_level_display(c_new_l)
+                    dest = f"C{c_new_c} {c_disp}"
                     steps = c_score_perf - c_score_curr
                     if steps > 1:
-                        report_text.append(f"   -> 🚀 PROMOTION! (Jumped {steps} Levels!)")
-            else:
-                c_status = "MAINTAIN" # Default for missed target if no demotion
-                c_new_c, c_new_l = c_chart, c_level
+                        report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): 🚀 PROMOTION! (Jumped {steps} Levels to {dest})")
+                    else:
+                        report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): ✅ LEVEL UP! (Now at {dest})")
+                else:
+                    report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): MAINTAIN (Max Level or Scored Equal)")
+                    c_status = "MAINTAIN"
+                    c_new_c, c_new_l = c_chart, c_level
                 
-                # Check Demotion (Reps)
+            else:
+                # Check Demotion (Reps) - ONLY IF MISSED
                 streak = 1 + self._get_consecutive_fails("Cardio")
                 if streak >= 3:
                     c_status = "DOWN"
                     c_perf_c, c_perf_l = bx.calculate_cardio_placement(self.reps_achieved, c_chart)
                     
-                    if c_perf_l == "1":
+                    # Logic: Drop to performance level.
+                    # Constraint: Don't drop CHART unless we were already at the bottom (Level 1 / D-)
+                    if c_level != "1" and int(c_perf_c) < int(c_chart):
+                        c_perf_c = c_chart
+                        c_perf_l = "1"
+                    elif c_level == "1":
                          targets = bx.get_targets(c_chart, "1")
                          if self.reps_achieved[4] < targets[4] and int(c_chart) > 1:
                              c_perf_c = str(int(c_chart) - 1)
                              c_perf_l = "12"
+                         else:
+                             c_perf_c = c_chart
+                             c_perf_l = "1"
 
                     c_new_c, c_new_l = c_perf_c, c_perf_l
                     c_disp = bx.get_level_display(c_new_l)
-                    report_text.append(f"   -> 📉 DEMOTIION: {streak} Consecutive Failures. Dropped to C{c_new_c} {c_disp}")
+                    report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): 📉 DEMOTIION: {streak} Consecutive Failures. Dropped to C{c_new_c} {c_disp}")
                 else:
-                    report_text.append(f"   -> Missed Target")
+                    report_text.append(f"🏃 Cardio ({self.current_cardio_mode}): Missed Target (Streak {streak}/3)")
+
 
         # 4. Final Verdict
-        # 4. Final Verdict
-        # Format: Strength (LEAPFROG to C2 B+) / Cardio (MAINTAIN)
+        # Format: Strength (LEAPFROG to C2 B+) / Cardio (MAINTAIN (1/3 Strikes))
         
-        def get_progression_desc(old_c, old_l, new_c, new_l, status, score_old, score_new):
+        def get_progression_desc(old_c, old_l, new_c, new_l, status, score_old, score_new, strikes=0):
             if status == "DOWN":
                 n_disp = bx.get_level_display(new_l)
                 dest = f"C{new_c} {n_disp}"
                 return f"DEMOTION to {dest}"
             if status != "UP":
-                return "MAINTAIN"
+                c_disp = bx.get_level_display(old_l)
+                loc = f"C{old_c} {c_disp}"
+                if strikes > 0:
+                     return f"MAINTAIN {loc} ({strikes}/3 Strikes)"
+                return f"MAINTAIN {loc}"
             
             diff = score_new - score_old
             n_disp = bx.get_level_display(new_l)
@@ -2230,16 +2425,44 @@ class Bio5BXApp(tk.Tk):
             return f"LEVEL UP to {dest}"
 
         # Strength Verdict
-        s_algo_verdict = get_progression_desc(s_chart, s_level, s_new_c, s_new_l, s_status, s_score_curr, s_score_perf)
-        # Cardio Verdict
-        c_algo_verdict = get_progression_desc(c_chart, c_level, c_new_c, c_new_l, c_status, bx.get_total_score(c_chart, c_level), bx.get_total_score(c_new_c, c_new_l))
+        # Calculate current strk for display (if missed)
+        s_current_streak = 0
+        if s_missed > 0 and s_status == "MAINTAIN":
+             # We just missed, so streak is at least 1. 
+             # The DB function gets PAST history, so we add 1 for today.
+             s_current_streak = 1 + self._get_consecutive_fails("Strength")
 
-        status = f"Strength ({s_algo_verdict}) / Cardio ({c_algo_verdict})"
-        color = "#2ecc71" if "UP" in status else "#f1c40f"
+        s_algo_verdict = get_progression_desc(s_chart, s_level, s_new_c, s_new_l, s_status, s_score_curr, s_score_perf, s_current_streak)
         
-        reason = "Progress assessed independently."
-        if "UP" in status: reason = "Great Job! You advanced in at least one area."
-        if "MAINTAIN" in status and "UP" not in status: reason = "Steady progress. Improvements needed for next level."
+        # Cardio Verdict
+        c_current_streak = 0
+        if c_missed > 0 and c_status == "MAINTAIN":
+             c_current_streak = 1 + self._get_consecutive_fails("Cardio")
+
+        c_algo_verdict = get_progression_desc(c_chart, c_level, c_new_c, c_new_l, c_status, bx.get_total_score(c_chart, c_level), bx.get_total_score(c_new_c, c_new_l), c_current_streak)
+
+        status = f"Strength ({s_algo_verdict}) | Cardio ({c_algo_verdict})"
+        color = "#2ecc71" if "UP" in status else "darkorange"
+        if "DOWN" in status: color = "#e74c3c"
+        
+        def get_component_reason(name, status, missed):
+            if status == "UP": return f"{name} improved!"
+            if status == "DOWN": return f"{name} level reduced to match ability."
+            if missed > 0: return f"{name} targets missed."
+            return f"{name} maintained."
+
+        s_reason = get_component_reason("Strength", s_status, s_missed)
+        c_reason = get_component_reason("Cardio", c_status, c_missed)
+        
+        if s_reason == c_reason:
+            # Combined
+            if s_status == "UP": reason = "Great Job! Both Strength and Cardio improved!"
+            elif s_status == "DOWN": reason = "Both levels adjusted to match current performance."
+            elif s_missed > 0: reason = "Standards not met. Improvement required to advance."
+            else: reason = "Maintained status in both areas. Keep pushing!"
+        else:
+            # Different
+            reason = f"{s_reason} {c_reason}"
 
         # Check for Milestones (Strength & Cardio)
         age = self.calculate_age(self.user_data.get('dob', '2000-01-01'))
@@ -2366,9 +2589,18 @@ class Bio5BXApp(tk.Tk):
         f_verdict = ttk.Labelframe(f_bottom, text="Session Verdict")
         f_verdict.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0,10))
         
-        disp_status = status.replace(" / ", "\n")
-        ttk.Label(f_verdict, text=disp_status, font=("Arial", 14, "bold"), foreground=color, justify=tk.CENTER).pack(pady=5)
-        ttk.Label(f_verdict, text=reason, font=("Arial", 10), wraplength=400).pack(pady=5)
+        s_color = "#2ecc71" if "UP" in s_status else "darkorange"
+        if "DOWN" in s_status: s_color = "#e74c3c"
+        
+        c_color = "#2ecc71" if "UP" in c_status else "darkorange"
+        if "DOWN" in c_status: c_color = "#e74c3c"
+
+        # disp_status = status.replace(" | ", "\n").replace(" / ", "\n")
+        # ttk.Label(f_verdict, text=disp_status, font=("Arial", 14, "bold"), foreground=color, justify=tk.CENTER).pack(pady=5)
+        
+        ttk.Label(f_verdict, text=f"Strength ({s_algo_verdict})", font=("Arial", 12, "bold"), foreground=s_color, justify=tk.CENTER).pack(pady=(5,0))
+        ttk.Label(f_verdict, text=f"Cardio ({c_algo_verdict})", font=("Arial", 12, "bold"), foreground=c_color, justify=tk.CENTER).pack(pady=(0,5))
+        ttk.Label(f_verdict, text=reason, font=("Arial", 12), wraplength=400).pack(pady=5)
         
         # Badges Frame
         if milestones:
@@ -2395,7 +2627,7 @@ class Bio5BXApp(tk.Tk):
                 tk.Label(b_row, text=m_obj['text'], font=("Arial", 9, "bold")).pack(side=tk.LEFT)
         
         # Save Button (Just Exit now)
-        ttk.Button(frame, text="Finish & Close", command=self.show_profile_linker).pack(pady=5)
+        ttk.Button(frame, text="Finish & Close", command=self.show_dashboard).pack(pady=5)
 
     def save_notes_and_exit(self):
         # Allow pass through
@@ -2528,7 +2760,8 @@ class Bio5BXApp(tk.Tk):
                      
                      if "run" in e_type_lower or "walk" in e_type_lower:
                          # --- TIME LOGIC (Run/Walk) ---
-                         val = record['ex5'] if 'ex5' in row_keys else 0
+                         val = record['ex5_duration'] if 'ex5_duration' in row_keys else 0
+                         if val == 0 and 'ex5' in row_keys: val = record['ex5'] # Fallback? No, ex5 is boolean. 0 is safer.
                          mode = "Run" if "run" in e_type_lower else "Walk"
                          
                          # Fetch Target
@@ -2541,7 +2774,7 @@ class Bio5BXApp(tk.Tk):
                          diff = t_sec - val
                          status_s = " (Missed)" # Default if val > t_sec (slower)
                          
-                         if diff >= 0: # Done <= Target (Faster or Equal)
+                         if val > 0 and diff >= 0: # Done <= Target (Faster or Equal) AND Valid Data
                              status_s = " (🎯 TARGET HIT)"
                              if diff >= 60: status_s = " (🔥 UNSTOPPABLE)"
                              elif diff >= 10: status_s = " (🚀 SMASHED IT)"
@@ -2594,8 +2827,12 @@ class Bio5BXApp(tk.Tk):
         
         # D. VERDICT (Formatted)
         v_str = record['verdict']
-        if "Strength" in v_str and "Cardio" in v_str and "/" in v_str:
-            parts = v_str.split("/")
+        # Handle separator (Pipe | or Slash /)
+        # We replace " / Cardio" with " | Cardio" to protect internal fractions like "1/3"
+        v_clean = v_str.replace(" / Cardio", " | Cardio")
+        
+        if "Strength" in v_clean and "Cardio" in v_clean and "|" in v_clean:
+            parts = v_clean.split("|")
             s_part = parts[0].strip().replace("Strength (", "Strength - ").replace(")", "")
             c_part = parts[1].strip().replace("Cardio (", "Cardio - ").replace(")", "")
             final_v = f"VERDICT:\n{s_part}\n{c_part}"
@@ -2921,7 +3158,23 @@ class Bio5BXApp(tk.Tk):
             conn.commit()
             conn.close()
             
-            self.show_dashboard()
+            # Log this manual change in history
+            s_disp = bx.get_level_display(sl_raw)
+            c_disp = bx.get_level_display(cl_raw)
+            verdict = f"MANUAL SET: S(C{sc} {s_disp}) | C(C{cc} {c_disp})"
+            
+            # Construct DB fields (handle split)
+            db_chart = sc
+            if sc != cc: db_chart = f"{sc}/{cc}"
+            
+            db_level = sl_raw
+            if sl_raw != cl_raw: db_level = f"{sl_raw}/{cl_raw}"
+            
+            self.db_add_history(self.user_id, db_chart, db_level, verdict, 0, 0, 0, reps_list=[0]*5)
+            
+            # Update Live Obj
+            self.user_data["strength_chart"] = sc
+            self.user_data["strength_level"] = sl_raw
             top.destroy()
             
         tk.Button(top, text="Save Changes", bg="#2ecc71", fg="white", font=("Arial", 11, "bold"), command=save).pack(pady=20)
@@ -3173,7 +3426,7 @@ class CalibrationWizard(tk.Toplevel):
              self.update_dashboard_loop()
         else:
              if hasattr(self, 'lbl_device_dash'):
-                self.lbl_device_dash.config(text=f"📡 {status}... (Retrying)", foreground="#e67e22")
+                self.lbl_device_dash.config(text=f"📡 {status}...", foreground="#e67e22")
              self.after(2000, self.init_sensor_loop)
 
     # --- SOUND ENGINE ---
@@ -3235,7 +3488,7 @@ class CalibrationWizard(tk.Toplevel):
                 txt = f"✅ Active | Live HR: {bpm}"
                 if hasattr(self, 'lbl_device_dash'): self.lbl_device_dash.config(text=txt, foreground="#2ecc71")
             else:
-                if hasattr(self, 'lbl_device_dash'): self.lbl_device_dash.config(text=f"📡 {status}...", foreground="#95a5a6")
+                if hasattr(self, 'lbl_device_dash'): self.lbl_device_dash.config(text=f"📡 {status}...", foreground="#e67e22")
         self.after(1000, self.update_dashboard_loop)
 
     def draw_necker_cube(self, parent):
@@ -3323,9 +3576,12 @@ class CalibrationWizard(tk.Toplevel):
             "raw_results": self.results
         }
 
-        filename = f"{self.user_name.lower().replace(' ', '_')}_profile.json"
-        full_path = os.path.join(PROFILE_DIR, filename)
-
+        # Resolve File via DB (using parent app reference)
+        db_u = self.parent.db_get_user(self.user_name)
+        filename = db_u['linked_file'] if (db_u and db_u.get('linked_file') and db_u['linked_file'] != 'none') else f"{self.user_name.lower().replace(' ', '_')}_profile.json"
+        
+        full_path = os.path.join(PROFILE_DIR, filename) 
+        
         final_data = {
             "name": self.user_name,
             "dob": self.user_dob,

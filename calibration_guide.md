@@ -1,14 +1,18 @@
 # 🧬 The Bio-Calibration Protocol
 
-**Tune Your Engine. Master Your Metrics.**
+> **Tune Your Engine. Master Your Metrics.**
 
 The 5BX isn't just about counting reps—it's about understanding your body's hidden signals. To give you accurate "Bio-Adaptive" feedback, the system needs to know your baseline. That's where the **Calibration Wizard** comes in.
+
+---
 
 ## 🎯 The Mission
 
 We need to map your heart's performance across the full spectrum of intensity. Think of this as a "Dyno Test" for your cardiovascular system.
 
 **Run this every 30 Days** to keep your profile accurate as you get fitter!
+
+---
 
 ## ⚡ The 4 Phases
 
@@ -20,9 +24,9 @@ The Wizard will guide you through four distinct 60-second phases. Here is your c
 *   **Why**: This sets your "Zero Point". We measure your resting HRV (Heart Rate Variability) here. High HRV = Ready to train!
 
 ### Phase 2: 🧠 STRESS (Cognitive Load)
-*   **Goal**: Simulate mental pressure.
-*   **Action**: The screen will flash math problems. Solve them in your head as fast as you can! Don't worry about getting them right—worry about trying hard.
-*   **Why**: We want to see how your heart reacts to *mental* stress vs *physical* stress.
+*   **Goal**: Simulate mental focus and visual processing load.
+*   **Action**: A **Necker Cube** (wireframe box) will appear. Focus intently on the front side of the cube. Try to mentally "hold" the orientation of the cube in that position, either down-left or up-right.
+*   **Why**: We want to see how your heart reacts to *mental* engagement and visual concentration vs *physical* stress.
 
 ### Phase 3: 🔥 EXERTION (The Spike)
 *   **Goal**: Maximize Heart Rate quickly.
@@ -33,6 +37,8 @@ The Wizard will guide you through four distinct 60-second phases. Here is your c
 *   **Goal**: Return to baseline.
 *   **Action**: Stop moving immediately. Sit down. Return to your deep breathing.
 *   **Why**: This is the most critical metric. How quickly can your system switch from "Fight or Flight" back to "Rest and Digest"? A fast recovery is the hallmark of an elite athlete.
+
+---
 
 ## 📊 The Result: Your Bio-Profile
 

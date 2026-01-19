@@ -8,6 +8,8 @@ Developed by Dr. Bill Orban for the Royal Canadian Air Force in the late 1950s, 
 
 The promise is simple: **11 minutes a day** to build a body that is ready for anything.
 
+---
+
 ## 🚀 The Concept
 
 5BX isn't just a workout; it's a **ladder**. 
@@ -20,6 +22,8 @@ You don't just "do exercise." You climb. The system is built on **6 Charts**, co
 1.  **Zero Friction**: No membership. No clothes to buy. No equipment to set up. You can do it in your pajamas next to your bed.
 2.  **Scientifically Balanced**: Dr. Orban carefully sequenced 5 movements to target flexibility, core, back, upper body, and cardio in a precise flow.
 3.  **Your Pace**: It meets you exactly where you are. Whether you are a sofa-surfer or a marathon runner, there is a level that will challenge you.
+
+---
 
 ## ⚡ The 5 Exercises
 
@@ -46,6 +50,8 @@ You don't just "do exercise." You climb. The system is built on **6 Charts**, co
 *   *Prefer the outdoors?* You can swap this for a timed Run or Walk on Charts 1-4.
 ![Exercise 5](images/c1_ex5.png)
 
+---
+
 ## 📈 Visual Guide: The Charts
 
 The program is built on **6 Charts**. Each chart represents a significant increase in difficulty. Below is **Chart 1**, the launching pad for your journey.
@@ -71,6 +77,8 @@ The program is built on **6 Charts**. Each chart represents a significant increa
 
 > **Your Goal**: Smash Level 12 (A+). Once you do, you graduate to **Chart 2**, where the real work begins.
 
+---
+
 ## 🎮 How to Play
 
 ### 1. The Daily Grind
@@ -88,6 +96,7 @@ Did you hit the target numbers for your current level?
 ### 4. Maintenance Mode 🧘
 Once you reach the fitness level appropriate for your age, you can switch to **3 days a week**. You have "arrived." (But between us? Go for Chart 6.)
 
+---
 
 > *"The 5BX Plan is designed to bring you to a level of physical fitness that will enable you to meet the physical demands of your daily work and play."* 
 > 
