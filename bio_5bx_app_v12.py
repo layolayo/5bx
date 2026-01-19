@@ -89,7 +89,13 @@ class Bio5BXApp(tk.Tk):
         self.linker_active = False # New flag for first screen
         self.cardio_mode_var = tk.StringVar(value="Standard (Stationary)")
         self.current_cardio_mode = None # Reset to None for dynamic selection
-
+        
+        self.last_reconnect_attempt = 0 # Auto-Reconnect Cooldown
+        self.is_reconnecting = False # Flag to prevent concurrent reconnection loops
+        self.retry_task = None # Handle for pending scheduled retries
+        self.retry_task = None # Handle for pending scheduled retries
+        self.reset_task = None # Handle for manual reset delay
+        self.sensor = None # Initialize sensor attribute
 
         self.init_sensor()
 
@@ -99,17 +105,78 @@ class Bio5BXApp(tk.Tk):
         self.reps_achieved = []
         self.target_reps_list = []
         self.temp_reps_buffer = None
+        
+        self.last_reconnect_attempt = 0 # Auto-Reconnect Cooldown
+        self.is_reconnecting = False # Flag to prevent concurrent reconnection loops
 
         self._init_db()
         self.show_profile_linker()
 
-    def init_sensor(self):
+    def init_sensor(self, attempt=1, max_attempts=10):
+        # Prevent concurrent reconnection attempts (Strict Lock)
+        if attempt == 1 and self.is_reconnecting:
+             print("Sensor Init: already in progress, skipping request.")
+             return
+
+        self.is_reconnecting = True
+        
         try:
+            # UI STEP 3: Initialising (Only on first attempt to avoid flicker)
+            if attempt == 1:
+                try:
+                    msg = "📡 Initialising ANT+ HRM Sensor..."
+                    if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                        self.lbl_device_status.config(text=msg, foreground="#f1c40f")
+                    if hasattr(self, 'lbl_device_dash') and self.lbl_device_dash.winfo_exists():
+                        self.lbl_device_dash.config(text=msg, foreground="#f1c40f")
+                    self.update()
+                except: pass
+
+            # CRITICAL: Prevent Zombie Sensors
+            # If we are about to create a new sensor, we MUST ensure the old one is dead
+            # and not holding the USB handle.
+            if self.sensor:
+                try: 
+                    self.sensor.stop()
+                except: pass
+                self.sensor = None
+
             self.sensor = AntHrvSensor()
             self.sensor.start()
+            print(f"Sensor Initialized Successfully! (Attempt {attempt})")
+            
+            # UI STEP 4: Secured
+            try:
+                msg = "📡 Connection Secured"
+                if hasattr(self, 'lbl_device_dash') and self.lbl_device_dash.winfo_exists():
+                     self.lbl_device_dash.config(text=f"{msg} - Active", foreground="#2ecc71")
+                if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                     self.lbl_device_status.config(text=msg, foreground="#2ecc71")
+            except: pass
+            
+            # Reconnection successful - release flag and clear task
+            self.is_reconnecting = False
+            self.retry_task = None
+            return
+            
         except Exception as e:
-            print(f"Sensor Error: {e}")
-            self.sensor = None
+            # Cleanup failed instance immediately
+            if self.sensor:
+                 try: self.sensor.stop()
+                 except: pass
+                 self.sensor = None
+
+            err_str = str(e).lower()
+            # Check for "Resource busy" (Error 16)
+            if ("busy" in err_str or "16" in err_str or "usb" in err_str) and attempt < max_attempts:
+                print(f"Sensor Busy: Retrying ({attempt}/{max_attempts})...")
+                # Schedule next attempt in 500ms WITHOUT blocking GUI
+                self.retry_task = self.after(500, lambda: self.init_sensor(attempt + 1, max_attempts))
+            else:
+                print(f"Sensor Error: {e}")
+                self.sensor = None
+                self.is_reconnecting = False # Give up and release flag
+                self.retry_task = None
 
     def play_beep(self):
         system_os = platform.system()
@@ -1605,6 +1672,47 @@ class Bio5BXApp(tk.Tk):
         self.run_exercise_screen()
         self.sensor_loop() 
 
+    def reset_sensor_connection(self):
+        print("Force Resetting Sensor...")
+        
+        # UI STEP 1: Closing
+        try:
+            if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                 self.lbl_device_status.config(text="📡 Closing USB Connection...", foreground="#e67e22")
+            if hasattr(self, 'lbl_device_dash') and self.lbl_device_dash.winfo_exists():
+                 self.lbl_device_dash.config(text="📡 Closing USB...", foreground="#e67e22")
+        except: pass
+        self.update() # Force UI refresh
+
+        if self.sensor:
+            try: self.sensor.stop()
+            except: pass
+            self.sensor = None
+            
+        # UI STEP 2: Waiting/Re-opening
+        try:
+            if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                 self.lbl_device_status.config(text="📡 Re-opening USB Connection...", foreground="#e67e22")
+        except: pass
+        
+        # Stop any pending retry loops
+        if self.retry_task:
+             try: self.after_cancel(self.retry_task)
+             except: pass
+             self.retry_task = None
+             
+        # Stop any pending reset delay (Debounce)
+        if self.reset_task:
+             try: self.after_cancel(self.reset_task)
+             except: pass
+             self.reset_task = None
+             
+        self.is_reconnecting = False # Force release lock for this manual action
+
+        # Smart Init will handle the waiting -> Instant callback
+        # Wait 2.0s to allow proper USB resource release by OS
+        self.reset_task = self.after(2000, self.init_sensor)
+        
     def run_exercise_screen(self):
         self._clear()
         idx = self.current_exercise_idx
@@ -1648,6 +1756,7 @@ class Bio5BXApp(tk.Tk):
         top_bar.pack(fill=tk.X, pady=5)
         
         tk.Button(top_bar, text="⬅ Quit Workout", command=self.show_dashboard, bg="#e74c3c", fg="white").pack(side=tk.LEFT)
+        tk.Button(top_bar, text="📡 Reset", command=self.reset_sensor_connection, bg="#e67e22", fg="white").pack(side=tk.RIGHT)
         
         title_text = f"Exercise {idx+1}: {details['name']}"
         
@@ -1814,6 +1923,7 @@ class Bio5BXApp(tk.Tk):
         top_bar = ttk.Frame(parent)
         top_bar.pack(fill=tk.X, pady=5)
         tk.Button(top_bar, text="⬅ Quit Workout", command=self.show_dashboard, bg="#e74c3c", fg="white").pack(side=tk.LEFT)
+        tk.Button(top_bar, text="📡 Reset", command=self.reset_sensor_connection, bg="#e67e22", fg="white").pack(side=tk.RIGHT)
 
         ttk.Label(parent, text="Select Exercise 5 Variant", font=("Arial", 20, "bold")).pack(pady=10)
         
@@ -1992,7 +2102,30 @@ class Bio5BXApp(tk.Tk):
     def sensor_loop(self):
         if not self.workout_active: return
         
-        if self.sensor:
+        # --- AUTO-RECONNECT LOGIC ---
+        current_time = time.time()
+        needs_restart = False
+        
+        if self.sensor is None: needs_restart = True
+        elif not self.sensor.running: needs_restart = True
+        elif hasattr(self.sensor, 'status') and str(self.sensor.status).startswith("Error"): needs_restart = True
+        
+        if needs_restart and not self.is_reconnecting:
+            if (current_time - self.last_reconnect_attempt) > 5.0:
+                print("⚠️ Auto-Reconnecting Sensor (Dropout Detected)...")
+                self.last_reconnect_attempt = current_time
+                
+                # Update Status if possible
+                if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                    self.lbl_device_status.config(text="📡 Reconnecting...", foreground="#e67e22")
+                    
+                # Use our Smart Retry Init
+                self.init_sensor() 
+            else:
+                # Cooldown period
+                pass
+                
+        if self.sensor and self.sensor.running:
             data = self.sensor.get_data()
             hr = data['bpm']
             rmssd = data['rmssd']
@@ -2024,11 +2157,11 @@ class Bio5BXApp(tk.Tk):
 
                 try:
                     txt = f"♥ {hr} BPM"
-                    if hasattr(self, 'lbl_hr'): self.lbl_hr.config(text=txt)
+                    if hasattr(self, 'lbl_hr'): self.lbl_hr.config(text=txt, foreground="#2c3e50")
                     
                     # LIVE HRV UPDATE (NEW)
                     if hasattr(self, 'lbl_hrv'): 
-                        self.lbl_hrv.config(text=f"HRV: {int(rmssd)} ms")
+                        self.lbl_hrv.config(text=f"HRV: {int(rmssd)} ms", foreground="#2c3e50")
 
                     if hasattr(self, 'lbl_advice'): self.lbl_advice.config(text=status_text, foreground=status_color)
                 except: pass
@@ -2041,6 +2174,11 @@ class Bio5BXApp(tk.Tk):
             uptime = data.get('uptime_hours')
             bpm = data.get('bpm', 0)
             status = data.get('status', 'Initializing')
+            
+            # --- PATCH: If we have stale data (status is not Active and loop has stalled), fall through ---
+            if status != "Active" and bpm == 0:
+                 # Treat as disconnected for UI Update purposes to prevent stuck values
+                 pass
 
             if status == "Active" or bpm > 0:
                 stat_txt = f"📡 - ✅ {manuf} #{serial}" if serial else f"📡 - ❌ {manuf}"
@@ -2050,8 +2188,23 @@ class Bio5BXApp(tk.Tk):
                 stat_txt = f"📡 {status}..."
 
             try:
-                if hasattr(self, 'lbl_device_status'):
-                        self.lbl_device_status.config(text=stat_txt, foreground="#2ecc71" if bpm > 0 else "#95a5a6")
+                if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                        self.lbl_device_status.config(text=stat_txt, foreground="#2ecc71" if hr > 0 else "#95a5a6")
+            except: pass
+            
+        else:
+            # SENSOR IS DOWN / RECONNECTING - Mark Data Stale
+            try:
+                if hasattr(self, 'lbl_hr') and self.lbl_hr.winfo_exists():
+                     self.lbl_hr.config(text="♥ -- BPM", foreground="#e74c3c") # Red for Stale
+                if hasattr(self, 'lbl_hrv') and self.lbl_hrv.winfo_exists():
+                     self.lbl_hrv.config(text="HRV: -- ms", foreground="#e74c3c")
+                     
+                if hasattr(self, 'lbl_device_status') and self.lbl_device_status.winfo_exists():
+                    # If we are effectively reconnecting, keep the orange text, else show Error
+                    is_recon = getattr(self, 'is_reconnecting', False)
+                    conn_text = "📡 Reconnecting..." if is_recon else "📡 Disconnected"
+                    self.lbl_device_status.config(text=conn_text, foreground="#e67e22" if is_recon else "#e74c3c")
             except: pass
             
         self.after(1000, self.sensor_loop)
@@ -3625,10 +3778,17 @@ class CalibrationWizard(tk.Toplevel):
 
     def destroy(self):
         self.dashboard_active = False # Stop loops
+        if self.retry_task:
+             try: self.after_cancel(self.retry_task)
+             except: pass
+        if self.reset_task:
+             try: self.after_cancel(self.reset_task)
+             except: pass
         if self.sensor:
             try: self.sensor.stop()
             except: pass
-        self.parent.finish_calibration_wizard() # Notify parent
+        try: self.parent.finish_calibration_wizard() # Notify parent if exists
+        except: pass
         super().destroy()
 
 if __name__ == "__main__":
