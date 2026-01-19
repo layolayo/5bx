@@ -1,38 +1,38 @@
 {
     "name": "Test",
-    "dob": "1980-01-01",
-    "age": 46,
+    "dob": "2003-01-01",
+    "age": 23,
     "current_stats": {
-        "date": "2026-01-11 23:17:30",
-        "resting_hr": 64.1,
-        "baseline_rmssd": 40.3,
-        "stress_hr_threshold": 73.7,
-        "recovery_score": 39.9,
-        "max_hr": 180,
+        "date": "2026-01-19 17:39:24",
+        "resting_hr": 67.1,
+        "baseline_rmssd": 55.991,
+        "stress_hr_threshold": 77.2,
+        "recovery_score": 144.3,
+        "max_hr": 197,
         "raw_results": {
             "rest": {
-                "avg_hr": 64.10169491525424,
-                "max_hr": 67,
-                "avg_rmssd": 40.29907298998206,
-                "peak_rmssd": 52.159569492617294
+                "avg_hr": 67.1,
+                "max_hr": 83,
+                "avg_rmssd": 55.99082283839575,
+                "peak_rmssd": 101.71604517554664
             },
             "stress": {
-                "avg_hr": 66.77777777777777,
-                "max_hr": 70,
-                "avg_rmssd": 48.10796680807934,
-                "peak_rmssd": 56.72681054389325
+                "avg_hr": 67.45,
+                "max_hr": 72,
+                "avg_rmssd": 21.308998401789996,
+                "peak_rmssd": 28.36036573860757
             },
             "exertion": {
-                "avg_hr": 66.31111111111112,
-                "max_hr": 68,
-                "avg_rmssd": 32.660476513729186,
-                "peak_rmssd": 39.433925530672454
+                "avg_hr": 87.62222222222222,
+                "max_hr": 105,
+                "avg_rmssd": 118.68690838305842,
+                "peak_rmssd": 146.0014170927921
             },
             "recovery": {
-                "avg_hr": 65.75,
-                "max_hr": 70,
-                "avg_rmssd": 33.40340490462345,
-                "peak_rmssd": 39.92363399947627
+                "avg_hr": 111.61666666666666,
+                "max_hr": 126,
+                "avg_rmssd": 72.72391100661582,
+                "peak_rmssd": 144.31467055684615
             }
         }
     },

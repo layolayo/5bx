@@ -2,7 +2,42 @@
     "name": "Matthew",
     "dob": "1973-10-09",
     "age": 52,
-    "current_stats": {
+        "current_stats": {
+        "date": "2026-01-19 17:39:24",
+        "resting_hr": 67.1,
+        "baseline_rmssd": 55.991,
+        "stress_hr_threshold": 77.2,
+        "recovery_score": 144.3,
+        "max_hr": 180,
+        "raw_results": {
+            "rest": {
+                "avg_hr": 67.1,
+                "max_hr": 83,
+                "avg_rmssd": 55.99082283839575,
+                "peak_rmssd": 101.71604517554664
+            },
+            "stress": {
+                "avg_hr": 67.45,
+                "max_hr": 72,
+                "avg_rmssd": 21.308998401789996,
+                "peak_rmssd": 28.36036573860757
+            },
+            "exertion": {
+                "avg_hr": 87.62222222222222,
+                "max_hr": 105,
+                "avg_rmssd": 118.68690838305842,
+                "peak_rmssd": 146.0014170927921
+            },
+            "recovery": {
+                "avg_hr": 111.61666666666666,
+                "max_hr": 126,
+                "avg_rmssd": 72.72391100661582,
+                "peak_rmssd": 144.31467055684615
+            }
+        }
+
+    },
+    "history": [{    "current_stats": {
         "date": "2026-01-13 09:41:40",
         "resting_hr": 70.3,
         "baseline_rmssd": 47.959,
@@ -35,12 +70,6 @@
                 "peak_rmssd": 156.01326203574644
             }
         }
-    },
-    "history": [
-        {
-            "date": "Legacy",
-            "resting_hr": 71,
-            "baseline_rmssd": 66
         }
-    ]
+        }]
 }
