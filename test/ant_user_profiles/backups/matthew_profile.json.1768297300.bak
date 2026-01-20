@@ -1,9 +1,0 @@
-{
-    "name": "Matthew",
-    "age": 52,
-    "resting_hr": 71,
-    "baseline_rmssd": 66,
-    "stress_hr_threshold": 81.64999999999999,
-    "recovery_score": 325,
-    "max_hr": 168
-}
