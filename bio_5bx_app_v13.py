@@ -1374,13 +1374,20 @@ class Bio5BXApp(tk.Tk):
         # Ex 7 (idx 6) is Walk.
         
         target_mode = None
+        
+        # Pre-fetch config to determine mode name (Run/Walk/Jog)
+        chart_str = str(self.view_chart_idx)
+        cfg = bx.get_cardio_config(chart_str)
+
         if idx == 5: target_mode = "RUN"
-        elif idx == 6: target_mode = "WALK"
+        elif idx == 6: 
+            # Detect Jog vs Walk
+            w_lbl = cfg.get('walk')
+            if w_lbl and "Jog" in w_lbl: target_mode = "JOG"
+            else: target_mode = "WALK"
         
         if target_mode:
-            # 1. Get Distances
-            chart_str = str(self.view_chart_idx)
-            cfg = bx.get_cardio_config(chart_str)
+            # 1. Get Distances (Already fetched cfg above)
             
             # Helper to parse "1 Mile" -> 1.0
             def parse_dist(txt):
@@ -1401,7 +1408,7 @@ class Bio5BXApp(tk.Tk):
             if target_mode == "RUN":
                  dist = parse_dist(cfg.get('run'))
                  m_idx = 5 # Index in get_targets
-            elif target_mode == "WALK":
+            elif target_mode in ["WALK", "JOG"]:
                  dist = parse_dist(cfg.get('walk'))
                  m_idx = 6 # Index in get_targets
             

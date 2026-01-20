@@ -112,12 +112,19 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
     c_score_old = get_total_score(c_old_c, c_old_l)
     c_score_new = get_total_score(c_new_c, c_new_l)
     
-    def check_threshold(target_c, target_l, title, is_elite=False, age_range=None, custom_img=None):
+    def check_threshold(target_c, target_l, title, is_elite=False, age_range=None, custom_img=None, surpass_only=True):
         t_score = get_total_score(target_c, target_l)
         
         # Did we cross it?
-        s_crossed = (s_score_old < t_score <= s_score_new)
-        c_crossed = (c_score_old < t_score <= c_score_new)
+        # User Request: "they should only be given when the conditions for this badge are surpassed"
+        if surpass_only:
+            # Surpass: Old score was at/below target, New score is STRICTLY ABOVE target
+            s_crossed = (s_score_old <= t_score < s_score_new)
+            c_crossed = (c_score_old <= t_score < c_score_new)
+        else:
+            # Reach: Old score was below, New score is at/above
+            s_crossed = (s_score_old < t_score <= s_score_new)
+            c_crossed = (c_score_old < t_score <= c_score_new)
         
         if not s_crossed and not c_crossed: return
         
@@ -149,8 +156,8 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
     # 1. Check Age Targets
     for (min_a, max_a), target in AGE_TARGETS.items():
         if min_a <= age <= max_a:
-             # This is the user's primary age target
-             check_threshold(target[0], target[1], "🏆 AGE TARGET REACHED", False, (min_a, max_a))
+             # This is the user's primary age target - "Reached" is sufficient (Maintenance Goal)
+             check_threshold(target[0], target[1], "🏆 AGE TARGET REACHED", False, (min_a, max_a), surpass_only=False)
     
     # 2. Check Elite Targets
     has_elite = False
@@ -164,7 +171,7 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
             break
             
     if has_elite:
-        check_threshold(e_c, e_l, "✈️ FLYING CREW ELITE", True, e_range)
+        check_threshold(e_c, e_l, "✈️ FLYING CREW ELITE", True, e_range, surpass_only=True)
         
     # 3. Check Superman Targets (Younger Age Groups)
     # Check if user exceeds their own age target and meets younger targets
@@ -184,13 +191,18 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
             target = t['target']
             
             # Did we cross it? (Strict: Must meet BOTH now, and wasn't meeting BOTH before)
-            s_pass = (s_score_new >= t_score)
-            c_pass = (c_score_new >= t_score)
-            s_was_pass = (s_score_old >= t_score)
-            c_was_pass = (c_score_old >= t_score)
+            # SURPASS LOGIC for Superman (Already implied by earlier threshold check logic?)
+            # Actually, we use check_threshold below to award. 
+            # We just need to filter candidates here. 
+            # Strict Surpass Logic:
+            
+            s_super_pass = (s_score_new > t_score)
+            c_super_pass = (c_score_new > t_score)
+            s_was_pass = (s_score_old > t_score)
+            c_was_pass = (c_score_old > t_score)
             
             # Unlocked if passing BOTH now, but wasn't passing BOTH before
-            unlocked = (s_pass and c_pass) and (not s_was_pass or not c_was_pass)
+            unlocked = (s_super_pass and c_super_pass) and (not s_was_pass or not c_was_pass)
             
             if unlocked:
                 candidate = {
@@ -212,13 +224,13 @@ def check_milestones(age, s_old_c, s_old_l, s_new_c, s_new_l, c_old_c, c_old_l, 
         if std_candidates:
             std_candidates.sort(key=lambda x: x['score'], reverse=True)
             best = std_candidates[0]
-            check_threshold(best['target'][0], best['target'][1], best['title'], best['elite'], None, best['img'])
+            check_threshold(best['target'][0], best['target'][1], best['title'], best['elite'], None, best['img'], surpass_only=True)
 
         # Best Elite
         if elite_candidates:
             elite_candidates.sort(key=lambda x: x['score'], reverse=True)
             best = elite_candidates[0]
-            check_threshold(best['target'][0], best['target'][1], best['title'], best['elite'], None, best['img'])
+            check_threshold(best['target'][0], best['target'][1], best['title'], best['elite'], None, best['img'], surpass_only=True)
         
     return badges
 
@@ -576,9 +588,10 @@ def calculate_cardio_time_placement(time_secs, mode, current_chart):
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
-    # 1. Determine Valid Charts (Same Distance)
-    valid_charts = get_run_walk_distance_group(current_chart, mode)
-    placeholders = ','.join('?' for _ in valid_charts)
+    # 1. Determine Valid Charts (Strictly Current Chart to prevent Leapfrogging)
+    # User Request: "when being promoted you ALWAYS land in new chart at D-"
+    valid_charts = [str(current_chart)]
+    placeholders = '?'
     
     # 2. Select Max Level where Target Time >= User Time (Lower is Better for User)
     col = "ex5_run" if "Run" in mode else "ex5_walk"
@@ -614,8 +627,8 @@ def calculate_cardio_time_placement(time_secs, mode, current_chart):
 CARDIO_CONFIG = {
     "1": {"run": "1/2 Mile (0.8 km) Run", "walk": "1 Mile (1.6 km) Walk"},
     "2": {"run": "1 Mile (1.6 km) Run", "walk": "2 Mile (3.2 km) Walk"},
-    "3": {"run": "1 Mile (1.6 km) Run", "walk": "2 Mile (3.2 km) Walk"},
-    "4": {"run": "1 Mile (1.6 km) Run", "walk": "2 Mile (3.2 km) Walk"},
+    "3": {"run": "1 Mile (1.6 km) Run", "walk": "2 Mile (3.2 km) Jog"},
+    "4": {"run": "1 Mile (1.6 km) Run", "walk": "2 Mile (3.2 km) Jog"},
     "5": {"run": "1 Mile (1.6 km) Run", "walk": None},
     "6": {"run": "1 Mile (1.6 km) Run", "walk": None}
 }
