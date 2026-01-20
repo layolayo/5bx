@@ -1,0 +1,9 @@
+{
+    "name": "Harvey",
+    "age": 15,
+    "resting_hr": 79,
+    "baseline_rmssd": 62,
+    "stress_hr_threshold": 90.85,
+    "recovery_score": 330,
+    "max_hr": 205
+}
