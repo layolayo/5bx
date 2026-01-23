@@ -1784,6 +1784,9 @@ class Bio5BXApp(tk.Tk):
              if "Run" in raw: 
                  dist_text = raw.replace(" Run", "")
                  mode_name = "Run"
+             elif "Jog" in raw:
+                 dist_text = raw.replace(" Jog", "")
+                 mode_name = "Jog"
              elif "Walk" in raw: 
                  dist_text = raw.replace(" Walk", "")
                  mode_name = "Walk"
@@ -1834,7 +1837,16 @@ class Bio5BXApp(tk.Tk):
         stats_frame = tk.Frame(frame, bg="#22313f", bd=2, relief=tk.RAISED)
         stats_frame.pack(fill=tk.X, padx=40, pady=10)
         
-        lbl_target = ttk.Label(stats_frame, text=f"GOAL: {target}", font=("Courier", 32, "bold"), foreground="#ecf0f1", background="#22313f")
+        goal_text = f"GOAL: {target}"
+        if idx == 4 and self.current_cardio_mode and "Stationary" not in self.current_cardio_mode:
+            try:
+                t_val = int(target)
+                tm = t_val // 60
+                ts = t_val % 60
+                goal_text = f"GOAL: {tm}:{ts:02d}"
+            except: pass
+            
+        lbl_target = ttk.Label(stats_frame, text=goal_text, font=("Courier", 32, "bold"), foreground="#ecf0f1", background="#22313f")
         lbl_target.pack(pady=10) # Center
         
         self.time_left = duration
@@ -2386,9 +2398,9 @@ class Bio5BXApp(tk.Tk):
                 dest = f"C{s_new_c} {s_disp}"
                 steps = s_score_perf - s_score_curr
                 if steps > 1:
-                    report_text.append(f"Strength: 🚀 PROMOTION! (Jumped {steps} Levels to {dest})")
+                    report_text.append(f"💪 Strength: 🚀 PROMOTION! (Jumped {steps} Levels to {dest})")
                 else:
-                    report_text.append(f"Strength: ✅ LEVEL UP! (Now at {dest})")
+                    report_text.append(f"💪 Strength: ✅ LEVEL UP! (Now at {dest})")
 
         else:
             s_status = "MAINTAIN"

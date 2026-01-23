@@ -389,7 +389,7 @@ def get_exercise_detail(chart, idx, variant="Standard"):
     if idx == 4: # Exercise 5
         if "Run" in variant and "Stationary" not in variant:
              db_ex_id = 6
-        elif "Walk" in variant:
+        elif "Walk" in variant or "Jog" in variant:
              db_ex_id = 7
     
     # Retrieve name from DB with fallback
@@ -413,7 +413,9 @@ def get_exercise_detail(chart, idx, variant="Standard"):
             # Override Name if Variant (Still applies dynamic logic)
             if idx == 4:
                 if db_ex_id == 6: name_to_use = "Run (Distance)"
-                elif db_ex_id == 7: name_to_use = "Walk (Distance)"
+                elif db_ex_id == 7: 
+                    if "Jog" in variant: name_to_use = "Jog (Distance)"
+                    else: name_to_use = "Walk (Distance)"
                 
             return {"name": name_to_use, "desc": desc, "img": img_file}
     except:
