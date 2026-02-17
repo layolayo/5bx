@@ -2036,7 +2036,8 @@ class Bio5BXApp(tk.Tk):
         e_reps = tk.Entry(top, font=("Arial", 14), justify='center')
         
         # Check based on current mode, not just index
-        is_alt_cardio = (idx == 4 and self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode or "Jog" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode)
+        mode_str = str(self.current_cardio_mode).lower()
+        is_alt_cardio = (idx == 4 and self.current_cardio_mode and any(m in mode_str for m in ["run", "walk", "jog"]) and "stationary" not in mode_str)
         
         if is_alt_cardio:
              tk.Label(top, text="Time Taken (MM:SS):", fg="white", bg="#34495e").pack()
@@ -2296,6 +2297,11 @@ class Bio5BXApp(tk.Tk):
         if self.logger: self.logger.stop()
         self._clear()
 
+        mode_str = str(self.current_cardio_mode).lower()
+        is_alt_cardio = (self.current_exercise_idx == 4 and self.current_cardio_mode and 
+                        any(m in mode_str for m in ["run", "walk", "jog"]) and 
+                        "stationary" not in mode_str)
+
         missed = 0
         for a, t in zip(self.reps_achieved, self.target_reps_list):
             if a < t: missed += 1
@@ -2436,7 +2442,7 @@ class Bio5BXApp(tk.Tk):
         c_new_c, c_new_l = c_chart, c_level
         
         c_missed = 0
-        if self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode:
+        if is_alt_cardio:
             # Time Based: Achieved <= Target (LOWER IS BETTER)
             user_time = self.reps_achieved[4]
             target_time = self.target_reps_list[4]
@@ -2722,9 +2728,9 @@ class Bio5BXApp(tk.Tk):
 
         # Ex 5 Metadata
         ex5_duration = 0
-        if self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode:
+        if is_alt_cardio:
              ex5_duration = self.reps_achieved[4]
-             self.reps_achieved[4] = 1 if c_missed == 0 else 0
+             self.reps_achieved[4] = 1 # Store 1 in reps column as a 'completed' flag
               
         self.db_update_split_level(self.user_id, s_new_c, s_new_l, c_new_c, c_new_l)
         
@@ -2932,11 +2938,11 @@ class Bio5BXApp(tk.Tk):
                      if not e_type: e_type = "Standard"
                      e_type_lower = e_type.lower()
                      
-                     if "run" in e_type_lower or "walk" in e_type_lower:
+                     if "run" in e_type_lower or "walk" in e_type_lower or "jog" in e_type_lower:
                          # --- TIME LOGIC (Run/Walk) ---
                          val = record['ex5_duration'] if 'ex5_duration' in row_keys else 0
                          if val == 0 and 'ex5' in row_keys: val = record['ex5'] # Fallback? No, ex5 is boolean. 0 is safer.
-                         mode = "Run" if "run" in e_type_lower else "Walk"
+                         mode = "Run" if "run" in e_type_lower else ("Jog" if "jog" in e_type_lower else "Walk")
                          
                          # Fetch Target
                          t_sec = bx.get_time_target(c_c, c_l, mode)
