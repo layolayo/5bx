@@ -1821,7 +1821,7 @@ class Bio5BXApp(tk.Tk):
         hist_idx = idx
         if idx == 4 and self.current_cardio_mode:
             if "Run" in self.current_cardio_mode and "Stationary" not in self.current_cardio_mode: hist_idx = 5
-            elif "Walk" in self.current_cardio_mode: hist_idx = 6
+            elif "Walk" in self.current_cardio_mode or "Jog" in self.current_cardio_mode: hist_idx = 6
         
         hist_chart_filter = chart
         if "/" in str(chart):
@@ -1876,6 +1876,7 @@ class Bio5BXApp(tk.Tk):
                      raw = self.current_cardio_mode
                      if "Run" in raw: dist_text = raw.replace(" Run", "")
                      elif "Walk" in raw: dist_text = raw.replace(" Walk", "")
+                     elif "Jog" in raw: dist_text = raw.replace(" Jog", "")
                      else: dist_text = raw
                  
              if dist_text:
@@ -1883,7 +1884,7 @@ class Bio5BXApp(tk.Tk):
 
 
         # Alt Cardio Mode Logic
-        if idx == 4 and self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode:
+        if idx == 4 and self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode or "Jog" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode:
              # Manual Mode UI
              # Removed explicitly hiding HR/Advice/Timer. We want HR and Advice visible.
              # self.lbl_hr.pack_forget() <- REMOVED
@@ -1909,8 +1910,8 @@ class Bio5BXApp(tk.Tk):
                  dist = 0
                  c_idx = int(chart.split('/')[1] if '/' in str(chart) else chart)
                  if "Run" in self.current_cardio_mode:
-                     dist = 0.5 if c_idx == 1 else 1.0
-                 elif "Walk" in self.current_cardio_mode:
+                      dist = 0.5 if c_idx == 1 else 1.0
+                 elif "Walk" in self.current_cardio_mode or "Jog" in self.current_cardio_mode:
                      dist = 1.0 if c_idx == 1 else 2.0
                      
                  if dist > 0:
@@ -2035,7 +2036,7 @@ class Bio5BXApp(tk.Tk):
         e_reps = tk.Entry(top, font=("Arial", 14), justify='center')
         
         # Check based on current mode, not just index
-        is_alt_cardio = (idx == 4 and self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode)
+        is_alt_cardio = (idx == 4 and self.current_cardio_mode and ("Run" in self.current_cardio_mode or "Walk" in self.current_cardio_mode or "Jog" in self.current_cardio_mode) and "Stationary" not in self.current_cardio_mode)
         
         if is_alt_cardio:
              tk.Label(top, text="Time Taken (MM:SS):", fg="white", bg="#34495e").pack()
@@ -2311,7 +2312,7 @@ class Bio5BXApp(tk.Tk):
             target = self.target_reps_list[i]
             
             # Format for Cardio (Time vs Reps)
-            if i == 4 and self.current_cardio_mode in ["Run", "Walk"]:
+            if i == 4 and any(m in str(self.current_cardio_mode) for m in ["Run", "Walk", "Jog"]):
                  # Time
                  done_str = f"{int(done//60)}:{int(done%60):02d}"
                  target_str = f"{int(target//60)}:{int(target%60):02d}"
