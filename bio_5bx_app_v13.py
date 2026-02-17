@@ -2298,7 +2298,7 @@ class Bio5BXApp(tk.Tk):
         self._clear()
 
         mode_str = str(self.current_cardio_mode).lower()
-        is_alt_cardio = (self.current_exercise_idx == 4 and self.current_cardio_mode and 
+        is_alt_cardio = (self.current_cardio_mode and 
                         any(m in mode_str for m in ["run", "walk", "jog"]) and 
                         "stationary" not in mode_str)
 
